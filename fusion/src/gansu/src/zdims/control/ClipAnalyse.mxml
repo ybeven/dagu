@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 裁剪分析窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IClipAnalyse" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" x="200" y="200" width="278" height="282" title="裁剪分析窗口" fontSize="12" borderThicknessLeft="2" borderThicknessRight="2" borderThicknessBottom="2" creationComplete="init()">
+	<mx:Label x="10" y="24" text="裁剪容差半径："/>
+	<mx:TextInput id="clipRadius" x="120" y="20" text="0.0001" width="138"/>
+	<mx:Button id="button_submit" x="28" y="196" label="提交" width="65" click="submit()"/>
+	<mx:Button x="102" y="196" label="取消" width="65" click="cancel()"/>
+	<mx:Button x="175" y="196" label="关闭" width="65" click="close()"/>
+	<mx:Text x="13" y="132" width="248" height="56" text="请设置裁剪分析半径后，点击提交按钮发送分析请求。"/>
+	<mx:Script>
+		<![CDATA[
+			import zdims.draw.IMSCanvas;
+			import Mapgis7.WebService.BasLib.AnyLine;
+			import Mapgis7.WebService.BasLib.Polygon;
+			import zdims.control.layer.LayerDataViewer;
+			import zdims.util.SpacialAnalyse;
+			import zdims.map.IMSMap;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import flash.utils.getTimer;
+			import Mapgis7.WebService.BasLib.CLayerInfo;
+			import Mapgis7.WebService.BasLib.CLayerAccessInfo;
+			import Mapgis7.WebService.BasLib.CClipByPolygon;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.GRegion;
+			
+			private var _clipRegion:GRegion;
+			private var clipTimer:Timer;
+			private var _spatial:SpacialAnalyse;
+			private var _clipLayerAcsInfo:CLayerAccessInfo;
+			[Inspectable(category="MapGisIMS")]
+			public var layerDataViewer:LayerDataViewer;
+			private var _serverAddr:String;
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+			}
+			/**
+			 * 多边形裁剪处理事件
+			 * @param e
+			 *
+			 */
+			public function clipDocByPolygon(e:Event):void
+			{
+				if(!this.imsmap.checkActiveLayer())return;
+				var polygon:Polygon = this.imsmap.graphicCanvas.getSelectedPolygon();
+				var region:GRegion = new GRegion();
+				region.Rings[0] = new AnyLine();
+				AnyLine(region.Rings[0]).Arcs[0].Dots = polygon.Dots;
+				this.setClipRegion(region);
+				this.visible = true;
+				this._clipLayerAcsInfo=this.imsmap.activeMapDoc.getActiveLayerAccessInfo();
+				this._serverAddr=this.imsmap.activeMapDoc.serverAddress;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeMapDoc);
+			}
+
+			/**
+			 * 圆裁剪处理事件
+			 * @param e
+			 *
+			 */
+			public function clipDocByCircle(e:Event):void
+			{
+				//get the region from the circle
+				if(!this.imsmap.checkActiveLayer())return;
+				var region:GRegion = new GRegion();
+				region.Rings[0] = new AnyLine();
+				AnyLine(region.Rings[0]).Arcs[0].Dots = this.imsmap.graphicCanvas.getSelectedCircle().GetDots();
+				this.setClipRegion(region);
+				this.visible = true;
+				this._clipLayerAcsInfo=this.imsmap.activeMapDoc.getActiveLayerAccessInfo();
+				this._serverAddr=this.imsmap.activeMapDoc.serverAddress;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeMapDoc);
+			}
+			/**
+			 * 多边形裁剪处理事件
+			 * @param e
+			 *
+			 */
+			public function clipLayerByPolygon(e:Event):void
+			{
+				if(!checkActiveLayer()) return;
+				var polygon:Polygon = this.imsmap.graphicCanvas.getSelectedPolygon();
+				var region:GRegion = new GRegion();
+				region.Rings[0] = new AnyLine();
+				AnyLine(region.Rings[0]).Arcs[0].Dots = polygon.Dots;
+				this.setClipRegion(region);
+				this.visible = true;
+				var layerAccessInfo:CLayerAccessInfo=new CLayerAccessInfo();
+				layerAccessInfo.GdbInfo=this.imsmap.activeLayerObj.getActiveLayerAccessInfo().GdbInfo;
+				layerAccessInfo.LayerInfoList=new Array();
+				var idx:int=this.imsmap.activeLayerObj.activeLayerIndex;
+				layerAccessInfo.LayerInfoList[0]=this.imsmap.activeLayerObj.getActiveLayerAccessInfo().LayerInfoList[idx];
+				this._clipLayerAcsInfo=layerAccessInfo;
+				this._serverAddr=this.imsmap.activeLayerObj.serverAddress;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeLayerObj);
+			}
+
+			/**
+			 * 圆裁剪处理事件
+			 * @param e
+			 *
+			 */
+			public function clipLayerByCircle(e:Event):void
+			{
+				//get the region from the circle
+				if(!checkActiveLayer()) return;
+				var region:GRegion = new GRegion();
+				region.Rings[0] = new AnyLine();
+				AnyLine(region.Rings[0]).Arcs[0].Dots = this.imsmap.graphicCanvas.getSelectedCircle().GetDots();
+				this.setClipRegion(region);
+				this.visible = true;
+				var layerAccessInfo:CLayerAccessInfo=new CLayerAccessInfo();
+				layerAccessInfo.GdbInfo=this.imsmap.activeLayerObj.getActiveLayerAccessInfo().GdbInfo;
+				layerAccessInfo.LayerInfoList=new Array();
+				var idx:int=this.imsmap.activeLayerObj.activeLayerIndex;
+				layerAccessInfo.LayerInfoList[0]=this.imsmap.activeLayerObj.getActiveLayerAccessInfo().LayerInfoList[idx];
+				this._clipLayerAcsInfo=layerAccessInfo;
+				this._serverAddr=this.imsmap.activeLayerObj.serverAddress;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeLayerObj);
+			}
+			/**
+			 * 检查是否有激活图层
+			 */ 
+			private function checkActiveLayer():Boolean
+			{
+				if(this.imsmap.activeLayerObj==null)
+				{
+					Alert.show("当前没有图层对象被激活！");
+					return false;
+				}
+				if(this.imsmap.activeLayerObj.activeGdbIndex<0||this.imsmap.activeLayerObj.activeLayerIndex<0)
+				{
+					Alert.show("当前没有图层被激活，请激活当前要操作的图层！");
+					return false;
+				}
+				return true;
+				
+			}
+			/**
+			 * 设置裁剪框
+			 */ 
+			public function setClipRegion(region:GRegion):void
+			{
+				this._clipRegion = region;
+			}
+			/**
+			 * 提交按钮触发函数
+			 */ 
+			public function submit():void
+			{
+				
+				if(this.clipRadius.text == "") 
+				{
+					Alert.show("请输入裁剪分析半径。","提示");
+					return;
+				}
+				if(this._clipRegion == null)
+				{
+					Alert.show("还未设置裁剪范围。","提示");
+					return;
+				}
+				var clip:CClipByPolygon = new CClipByPolygon();
+				clip.Region = this._clipRegion;
+				var clipLayer:CLayerAccessInfo = this._clipLayerAcsInfo;
+				clip.GdbInfo = clipLayer.GdbInfo;
+				clip.LayerName = CLayerInfo(clipLayer.LayerInfoList[0]).LayerDataName;
+				clip.XClsType = CLayerInfo(clipLayer.LayerInfoList[0]).LayerType;
+				clip.FClsNameRtn = "clip"+getTimer();
+				clip.Radius = parseFloat(this.clipRadius.text);
+				clip.IsReCalculate = this.radiogroup_recalc.selectedValue;
+				clip.ClipFlg = parseInt(this.radiogroup_clipType.selectedValue.toString());
+				this._spatial.clipByPolygon(clip,onSubmit);
+				this.button_submit.enabled = false;
+			}
+			/**
+			 * 裁剪回调函数
+			 */ 
+			private function onSubmit(e:Event):void
+			{
+				var uid:String = this._spatial.onClipByPolygon(e);
+				if(uid != null && uid != "")
+				{
+					clipTimer = new Timer(1000);
+					clipTimer.addEventListener(TimerEvent.TIMER,function(e:TimerEvent):void{onTimer(uid,e)});
+					clipTimer.start();
+					this.button_submit.label = "0秒";
+				}
+				else
+				{ 
+					cancel();
+				}
+			}
+			/**
+			 * 计时器回调函数
+			 */ 
+			private function onTimer(uid:String,e:TimerEvent):void
+			{
+				this._spatial.getAnalyseResult(uid,getClipResult);
+				this.clipTimer.stop();
+				this.button_submit.label = Timer(e.target).currentCount.toString() + "秒";
+			}
+			/**
+			 * 获取结果函数
+			 */ 
+			public function getClipResult(e:Event):void
+			{
+				var rltName:String = this._spatial.onGetAnalyseResult(e);
+				if(rltName == null) 
+				{
+					cancel();
+					return;
+				}
+				if(rltName == "")
+				{ 
+					this.clipTimer.start();
+					return;
+				}
+				if(rltName == "*#*")
+				{
+					Alert.show("裁剪失败","提示");
+				}
+				else
+				{
+					Alert.yesLabel = "查看结果";  
+	     			Alert.noLabel = "取消"; 
+					Alert.show("裁剪成功。是否需要查看结果图层属性记录？","提示",Alert.YES|Alert.NO,this,function(e:CloseEvent):void{onAlert(e,rltName)},null,Alert.NO);  
+				}
+				cancel();
+			}
+			/**
+			 * 显示结果记录集
+			 */ 
+			public function onAlert(e:CloseEvent,rltLayerName:String):void
+			{
+				if(e.detail != Alert.YES) return;
+				if(this.layerDataViewer==null)
+				{
+					Alert.show("layerDataViewer属性为空！请创建LayerDataViewer控件！");
+					return;
+				}
+				this.layerDataViewer.showLayerAttRecord(rltLayerName,CLayerInfo(this._clipLayerAcsInfo.LayerInfoList[0]).LayerType,this._serverAddr);
+			}
+			/**
+			 * 取消按钮触发函数
+			 */ 
+			public function cancel():void
+			{
+				if(this.clipTimer != null && this.clipTimer.running)
+				{ 
+					this.clipTimer.stop();
+				}
+				this.button_submit.label = "提交";
+				this.button_submit.enabled = true;
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Label x="10" y="56" text="裁剪类型："/>
+	<mx:Label x="10" y="88" text="是否重算面积周长："/>
+	<mx:RadioButtonGroup id="radiogroup_clipType"/>
+	<mx:RadioButton x="120" y="58" value="4" label="外裁" groupName="radiogroup_clipType"/>
+	<mx:RadioButton x="177" y="58" value="3" label="内裁" selected="true" groupName="radiogroup_clipType"/>
+	<mx:RadioButtonGroup id="radiogroup_recalc"/>
+	<mx:RadioButton x="120" y="86" value="true" label="是" groupName="radiogroup_recalc"/>
+	<mx:RadioButton x="177" y="86" value="false" label="否" selected="true" groupName="radiogroup_recalc"/>
+	
+</IMSWindow>

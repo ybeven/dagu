@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 网络分析窗口 -->
+<IMSWindow xmlns="zdims.control.*"
+		   implements="zdims.interfaces.control.INetAnalyse"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="336"
+		   height="328"
+		   title="网络分析窗口"
+		   layout="vertical"
+		   creationComplete="initParam()">
+	<mx:HBox height="27">
+		<mx:RadioButtonGroup id="radiogroup1"/>
+		<mx:Label text="当前鼠标操作:"/>
+		<mx:RadioButton value="0"
+						label="设置路径点"
+						groupName="radiogroup1"
+						click="setMouseFun()"/>
+		<mx:RadioButton value="1"
+						label="设置障碍点"
+						groupName="radiogroup1"
+						click="setMouseFun()"/>
+	</mx:HBox>
+	<mx:HBox height="26"
+			 horizontalAlign="left">
+		<mx:Label text="设置分析半径:"/>
+		<mx:TextInput id="buffer"
+					  text="0.002"
+					  width="118"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Button label="清除路径点"
+				   click="clearPathDot()"/>
+		<mx:Button label="清除障碍点"
+				   click="clearBarrier()"/>
+		<mx:Button label="重置"
+				   click="reset()"/>
+		<mx:Button label="提交"
+				   click="submit()"/>
+	</mx:HBox>
+	<mx:Panel id="roadReslut"
+			  layout="vertical"
+			  width="321"
+			  height="190"
+			  headerColors=""
+			  title="网络分析结果"
+			  borderThicknessBottom="0"
+			  borderThicknessLeft="0"
+			  borderThicknessRight="0">
+		<mx:TextArea id="roadInfo"
+					 width="100%"
+					 height="100%"/>
+	</mx:Panel>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.CGdbInfo;
+			import Mapgis7.WebService.BasLib.CNetAnalyse;
+			import Mapgis7.WebService.BasLib.CNetEdge;
+			import Mapgis7.WebService.BasLib.CNetInputDot;
+			import Mapgis7.WebService.BasLib.CNetNode;
+			import Mapgis7.WebService.BasLib.CNetPath;
+			import Mapgis7.WebService.BasLib.CPathAnalyzeResult;
+			import Mapgis7.WebService.BasLib.Dot_2D;
+			import Mapgis7.WebService.BasLib.EAnalysType;
+			
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.managers.ToolTipManager;
+			
+			import zdims.event.IMSMapEvent;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.interfaces.IVector;
+			import zdims.util.IMSOperType;
+			import zdims.util.SpacialAnalyse;
+			
+			[Inspectable(category="MapGisIMS")]
+			public var GDBName:String="world";
+			[Inspectable(category="MapGisIMS")]
+			public var GDBSvrName:String="MapGisLocal";
+			[Inspectable(category="MapGisIMS")]
+			public var Password:String="";
+			[Inspectable(category="MapGisIMS")]
+			public var User:String="";
+			[Inspectable(category="MapGisIMS")]
+			public var NetLayerName:String="武汉道路网";
+			private var pathDots:String="";
+			private var barrier:String="";
+			private var road:IMSRoad;
+			private var inputDot:Array=new Array();
+			private var _spatial:SpacialAnalyse;
+			/**
+			 * 矢量地图对象
+			 */ 
+			public var vectorObj:IVector;
+			/**
+			 * 窗口初始化
+			 */ 
+			public function initParam():void
+			{
+				if (this.imsmap == null)
+				{
+					Alert.show("imsmap属性未赋值。", "提示");
+					return;
+				}
+				this.road = new IMSRoad();
+				this.road.imsmap=this.imsmap;
+			}
+			/**
+			 * 设置鼠标事件
+			 */ 
+			public function setMouseFun():void
+			{
+				this.imsmap.setCurOper(IMSOperType.SelectByHitting);
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP, addPoint);
+				this.imsmap.addEventListener(IMSMapMouseEvent.MAP_MOUSEUP, addPoint);
+				this.imsmap.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP,addPoint);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+			}
+			/**
+			 * 添加路径点和障碍点
+			 */ 
+			public function addPoint(e:Event):void
+			{
+				var dotStr:String = this.imsmap.mouseDownLogicPnt.x + "," + this.imsmap.mouseDownLogicPnt.y + ",";
+				if (this.radiogroup1.selectedValue == "0")
+				{
+					this.pathDots += dotStr;
+					var pathDot:Marker = new Marker();
+					pathDot.logicX = this.imsmap.mouseDownLogicPnt.x;
+					pathDot.logicY = this.imsmap.mouseDownLogicPnt.y;
+					pathDot.name = "路径点";
+					pathDot.setIconSrc("image/mark/v1.gif");
+					this.imsmap.addChildAt(pathDot,this.imsmap.layerLenth);
+				}
+				else
+				{
+					this.barrier += dotStr;
+					var barDot:Marker = new Marker();
+					barDot.logicX = this.imsmap.mouseDownLogicPnt.x;
+					barDot.logicY = this.imsmap.mouseDownLogicPnt.y;
+					barDot.name = "障碍点";
+					barDot.setIconSrc("image/mark/v0.gif");
+					this.imsmap.addChildAt(barDot,this.imsmap.layerLenth);
+				}
+			}
+			/**
+			 * 网络分析触发函数
+			 */ 
+			public function submit():void
+			{
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				this.road.clear();
+				this.road._roadCoorArr = "";
+				this.road._stopIcon = new Array();
+				var gdb:CGdbInfo = new CGdbInfo();
+				gdb.GDBName = this.GDBName;
+				gdb.GDBSvrName = this.GDBSvrName;
+				gdb.Password = this.Password;
+				gdb.User = this.User;
+				var obj:CNetAnalyse = new CNetAnalyse();
+				obj.GdbInfo = gdb;
+				obj.NetLayerName = this.NetLayerName;
+				obj.RequestDots = this.pathDots.substring(0, this.pathDots.length - 2);
+				obj.BarrierDots = this.barrier.substring(0, this.barrier.length - 2);
+				obj.NearDis = parseFloat(this.buffer.text);
+				obj.FlgType = "line";
+				obj.NetWeight = ",Weight1,Weight1";
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.netAnalyse(obj, onSubmit);
+			}
+			/**
+			 * 网络分析获取结果
+			 */ 
+			public function onSubmit(e:Event):void
+			{
+				this.roadInfo.htmlText = "";
+				var obj:CPathAnalyzeResult = this._spatial.onNetAnalyse(e);
+				if (obj == null || obj.Paths == null)
+					return;
+				var path:CNetPath = CNetPath(obj.Paths[0]);
+				var edgeNum:int = path.Edges.length;
+				this.roadInfo.htmlText += "1.从起点出发";
+				for (var i:int = 0; i < edgeNum; i++)
+				{
+					var edge:CNetEdge = CNetEdge(path.Edges[i]);
+					if (i != 0)
+						this.roadInfo.htmlText += i + 1 + ".";
+					if (i != edgeNum - 1)
+					{
+						this.roadInfo.htmlText += "经<font color='#ff0000'><b>" + edge.FieldValus[2] + "</b></font>到达<font color='#ff0000'><b>" + CNetNode(path.Nodes[i + 1]).FieldValus[0] + "</b></font><br/>";
+					}
+					else
+						this.roadInfo.htmlText += "经<font color='#ff0000'><b>" + edge.FieldValus[2] + "</b></font>到达终点";
+					var dotNum:int = edge.Dots.length;
+					for (var j:int = 0; j < dotNum; j++)
+					{
+						var dot:Dot_2D = Dot_2D(edge.Dots[j]);
+						this.road._roadCoorArr += dot.x + "," + dot.y + ",";
+					}
+					this.road.addNode(edge.FieldValus[2], Dot_2D(edge.Dots[Math.floor(dotNum / 2)]).x, Dot_2D(edge.Dots[Math.floor(dotNum / 2)]).y, 0, "image/bus/stop.gif");
+				}
+				this.road._roadCoorArr = this.road._roadCoorArr.substring(0, this.road._roadCoorArr.length - 2);
+				var dotstart:Dot_2D = CNetInputDot(obj.inputDots[0]).pDot;
+				this.road.addNode("起点", dotstart.x, dotstart.y, 0, "image/bus/qidian.gif", false);
+				var dotend:Dot_2D = CNetInputDot(obj.inputDots[obj.inputDots.length - 1]).pDot;
+				this.road.addNode("终点", dotend.x, dotend.y, 0, "image/bus/zhongdian.gif", false);
+				this.road.drawRoad();
+			}
+			/**
+			 * 重置，清除障碍点和路径点
+			 */ 
+			public function reset():void
+			{
+				this.road.clear();
+				this.road._roadCoorArr = "";
+				this.road._stopIcon = new Array();
+				clearPathDot();
+				clearBarrier();
+			}
+			/**
+			 * 清除路径点
+			 */ 
+			public function clearPathDot():void
+			{
+				this.pathDots = "";
+				var mark:Array = this.imsmap.getChildren();
+				for (var i:int = 0; i < mark.length; i++)
+				{
+					if (mark[i] is Marker&&UIComponent(mark[i]).name == "路径点")
+						this.imsmap.removeChild(mark[i]);
+				}
+			}
+			/**
+			 * 清除障碍点
+			 */ 
+			public function clearBarrier():void
+			{
+				this.barrier = "";
+				var mark:Array = this.imsmap.getChildren();
+				for (var i:int = 0; i < mark.length; i++)
+				{
+					if (mark[i] is Marker&&UIComponent(mark[i]).name == "障碍点")
+						this.imsmap.removeChild(mark[i]);
+				}
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public override function close():void
+			{
+				reset();
+				super.close();
+				this.imsmap.removeEventListener(MouseEvent.MOUSE_UP, addPoint);
+				if(this.radiogroup1.selection!=null)
+					this.radiogroup1.selection.selected=false;
+				this.imsmap.setCurOper(IMSOperType.Drag);
+			}
+		]]>
+	</mx:Script>
+</IMSWindow>

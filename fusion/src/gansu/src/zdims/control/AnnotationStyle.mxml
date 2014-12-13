@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--设置注记的参数-->
+<mx:Canvas implements="zdims.interfaces.control.IFeatureStyleEditor" width="200" height="153" xmlns:mx="http://www.adobe.com/2006/mxml"  fontSize="12" creationComplete="init()">
+	<mx:Label x="10" y="38" text="角度："/>
+	<mx:TextInput id="textAngle" x="53" y="34" text="0" width="138"/>
+	<mx:Label x="11" y="68" text="宽度："/>
+	<mx:TextInput id="textWidth" x="54" y="64" text="20" width="138"/>
+	<mx:Label x="10" y="98" text="高度："/>
+	<mx:TextInput id="textHeight" x="53" y="94" text="20" width="138"/>
+	<mx:Label x="11" y="128" text="颜色："/>
+	<mx:Label x="10" y="10" text="注记类参数设置:" width="102" color="#5164DD"/>
+	<mx:ComboBox id="textColor" x="53" y="125" width="137" dataProvider="['1:黑色','175:红色','4:黄色','7:绿色','5:蓝色','3:紫色']" editable="true"  change="setColor(this.textColor)"></mx:ComboBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.WebGraphicsInfo;
+			import Mapgis7.WebService.BasLib.GInfoType;
+			
+			private var gInfo:WebGraphicsInfo; 
+			/**
+			 * 获取当前的样式信息的类型：点类型
+			 */
+			public function getFeatureGinfoType():String
+			{
+				return GInfoType.PntInfo;
+			}
+			/**
+			 * 设置样式信息
+			 */ 
+			public function setGraphicStyle(style:WebGraphicsInfo):void
+			{
+				this.gInfo = style;
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public function init():void
+			{
+				if(gInfo == null) return;
+				this.textColor.text = gInfo.PntInfo.Color.toString();
+				this.textHeight.text = gInfo.PntInfo.SymHeight.toString();
+				this.textAngle.text = gInfo.PntInfo.Angle.toString();
+				this.textWidth.text = gInfo.PntInfo.SymWidth.toString();
+			}
+			/**
+			 * 颜色控件变化时触发的函数
+			 */ 
+			public function setColor(list:ComboBox):void
+			{
+				if(list.text!=null&&list.text!="")
+				{
+					list.text = list.text.split(":")[0];
+				}
+			}
+		]]>
+	</mx:Script>
+</mx:Canvas>

@@ -1,0 +1,575 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工具条 -->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml"
+	       xmlns:core="com.outsmart.dock.core.*"
+		   x="0"
+		   width="100%"
+		   creationComplete="init()">
+	<mx:Style>
+		
+		.horizontalDock {
+			minimumSize:			32;
+			maximumSize:			64;
+			scaleRange:				150;
+			labelPosition:			bottom;
+			horizontalLabelAlign:	center;
+			labelGap:				10;
+			labelAppearanceDelay:	0;
+
+			horizontalAlign:		right;
+			verticalAlign:			bottom;
+			paddingBottom:			5;
+			horizontalGap:			20;
+		}
+
+	</mx:Style>
+	  
+		<mx:Script>
+		<![CDATA[
+			import mx.effects.Iris;
+			import com.adobe.ac.mxeffects.SimpleDistortion;
+			import mx.controls.Label;
+			import mx.effects.Effect;
+			import com.adobe.ac.mxeffects.CubeRotate;
+			import mx.effects.Rotate;
+			import mx.events.EffectEvent;
+			import com.adobe.ac.mxeffects.Pop;
+			import mx.controls.Image;
+			import com.adobe.ac.mxeffects.Door;
+			import mx.containers.Panel;
+			import com.adobe.ac.mxeffects.DistortionConstants;
+			import mx.messaging.AbstractConsumer;
+			import mx.binding.utils.BindingUtils;
+			import mx.controls.Alert;
+			import com.outsmart.dock.events.DockItemEvent;
+			import com.outsmart.dock.core.*;
+			import mx.collections.ArrayCollection;
+			import zdims.map.IMSEagleEye;
+			import zdims.event.IMSMapEvent;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.draw.IMSCanvas;
+			import zdims.util.IMSOperType;
+			import zdims.map.IMSMap;
+			import mx.core.IFlexDisplayObject;
+			import sjd.managers.ResizeManager;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.core.Application;
+			import mx.utils.StringUtil;
+			import mx.core.UIComponent;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.collections.ArrayCollection;
+			import mx.controls.DataGrid;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.*;
+			
+			import com.adobe.ac.mxeffects.Push;
+			private var lastEvent:String;
+			private var lastCallFun:Function;
+			private var _dataProvider:ArrayCollection;
+			private var _map:IMSMap;
+			public static const TOOL_DISPLAY:String = "display";
+		    public static const TOOL_SEARCH:String = "search";
+		    public static const TOOL_EDIT:String = "edit";
+		    public static const TOOL_ANALYSIS:String="analysis";
+		    public static const TOOL_VIEW:String="view";
+			[Inspectable(category="MapGisIMS")]
+			public var topAnalyseWin:TopAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var displaySetWin:DisplaySet;
+			[Inspectable(category="MapGisIMS")]
+			public var projectCtrlWin:Project;
+			[Inspectable(category="MapGisIMS")]
+			public var measureControl:Measure;
+			[Inspectable(category="MapGisIMS")]
+			public var gpsControl:GPS;
+			[Inspectable(category="MapGisIMS")]
+			public var catalog:IMSCatalog;
+			
+			[Inspectable(category="MapGisIMS")]
+			public var mapDocDataViewer:MapDocDataViewer;
+			[Inspectable(category="MapGisIMS")]
+			public var conditionInput:ConditionInput;
+			[Inspectable(category="MapGisIMS")]
+			public var chartCtrl:Chart;
+			[Inspectable(category="MapGisIMS")]
+			public var busAnalyseCtrl:BusAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var clipControl:ClipAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var editControl:Editor;
+			[Inspectable(category="MapGisIMS")]
+			public var navigator:NavigationBar;
+			[Inspectable(category="MapGisIMS")]
+			public var netAnalyseCtrl:NetAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var overlayAnlyControl:OverLayAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var positionControl:PositionInfo;
+			[Inspectable(category="MapGisIMS")]
+			public var magnifier:Magnifier;
+			[Inspectable(category="MapGisIMS")]
+			public var eagleEye:IMSEagleEye;
+			[Inspectable(category="MapGisIMS")]
+			public var markEditor:MarkerEdit;
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				if(m!=null)
+					m.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				this._map = m;
+				
+			}
+			[Inspectable(category="MapGisIMS")]
+			/**
+			 * 给地图容器赋值
+			 */
+			public function get imsmap():IMSMap
+			{
+				return this._map;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function set dataProvider(m:String):void
+			{
+				switch(m)
+				{
+					case FishToolBar.TOOL_DISPLAY:
+					hdock.visible=true;
+					hdock.dataProvider=disPlayDataProvider;
+					this._dataProvider=disPlayDataProvider;
+					break;
+					case FishToolBar.TOOL_SEARCH:
+					hdock.visible=true;
+					hdock.dataProvider=searchDataProvider;
+					this._dataProvider=searchDataProvider;
+					break;
+					case FishToolBar.TOOL_EDIT:
+					hdock.visible=true;
+					hdock.dataProvider=editDataProvider;
+					this._dataProvider=editDataProvider;
+					break;
+					case FishToolBar.TOOL_ANALYSIS:
+				    hdock.visible=true;
+					hdock.dataProvider=analysisDataProvider;
+					this._dataProvider=analysisDataProvider;
+					break;
+					case FishToolBar.TOOL_VIEW:
+					hdock.visible=true;
+					hdock.dataProvider=viewDataProvider;
+					this._dataProvider=viewDataProvider;
+					break;
+				}
+			}
+			[Bindable] private var itemRenderer:ClassFactory = new ClassFactory(DockItem);
+			[Bindable] private var labelRenderer:ClassFactory = new ClassFactory(DockLabel);
+			
+			//基本显示操作工具条
+			[Bindable] private var disPlayDataProvider:ArrayCollection = new ArrayCollection([
+				{url:"image/toolbar/btn_01.png", title:"放大",operation:"zoomin"},
+				{url:"image/toolbar/btn_02.png", title:"缩小",operation:"zoomout"},
+				{url:"image/toolbar/btn_03.png", title:"移动",operation:"pan"},
+				{url:"image/toolbar/btn_05.png", title:"刷新",operation:"refresh"},
+				{url:"image/toolbar/btn_04.png", title:"复位",operation:"restore"},
+				{url:"image/toolbar/tool_7.png", title:"放大镜",operation:"magnifier"},
+				{url:"image/toolbar/tool_6.png", title:"鹰眼",operation:"eagle"},
+				{url:"image/toolbar/marker.png", title:"添加标注",operation:"setmarker"},
+			]);
+			[Bindable] private var searchDataProvider:ArrayCollection=new ArrayCollection([
+			    {url:"image/toolbar/btn_06.png", title:"点击查询",operation:"SelectByHitting"},
+				{url:"image/toolbar/btn_07.png", title:"拉框查询",operation:"SelectByRect"},
+				{url:"image/toolbar/btn_08.png", title:"圆查询",operation:"SelectByCircle"},
+				{url:"image/toolbar/btn_09.png", title:"线查询",operation:"SelectByLine"},
+				{url:"image/toolbar/btn_10.png", title:"多边形查询",operation:"SelectByPolygon"},
+				{url:"image/toolbar/btn_11.png", title:"属性条件查询",operation:"SelectByAttribute"},
+				{url:"image/toolbar/btn_12.png", title:"点击条件查询",operation:"SelectByHitAtt"},
+				{url:"image/toolbar/btn_13.png", title:"拉框条件查询",operation:"SelectByRectAtt"},
+				{url:"image/toolbar/btn_14.png", title:"圆条件查询",operation:"SelectByCircleAtt"},
+				{url:"image/toolbar/btn_15.png", title:"线条件查询",operation:"SelectByLineAtt"},
+				{url:"image/toolbar/btn_16.png", title:"多边形条件查询",operation:"SelectByPolygonAtt"},
+				]);
+			[Bindable] private var editDataProvider:ArrayCollection=new ArrayCollection([
+			    {url:"image/toolbar/tool_21.png", title:"添加点",operation:"addPoint"},
+				{url:"image/toolbar/tool_22.png", title:"添加线",operation:"addLine"},
+				{url:"image/toolbar/tool_23.png", title:"添加区",operation:"addRegion"},
+				]);
+			[Bindable] private var analysisDataProvider:ArrayCollection=new ArrayCollection([
+			    {url:"image/toolbar/btn_17.png", title:"圆裁剪",operation:"circleClip"},
+				{url:"image/toolbar/btn_18.png", title:"多边形裁剪",operation:"polygonClip"},
+				{url:"image/toolbar/btn_19.png", title:"叠加分析",operation:"overlayAnalyse"},
+				{url:"image/toolbar/btn_20.png", title:"拓扑分析",operation:"topoAnalyse"},
+				{url:"image/toolbar/btn_21.png", title:"投影转换",operation:"project"},
+				{url:"image/toolbar/btn_22.png", title:"公交换乘窗口",operation:"busAnalyse"},
+				{url:"image/toolbar/btn_23.png", title:"网络分析窗口",operation:"netAnalyse"},
+			    ]);
+			 [Bindable] private var viewDataProvider:ArrayCollection=new ArrayCollection([
+			    {url:"image/toolbar/btn_24.png", title:"导航控件",operation:"navigator"},
+				{url:"image/toolbar/btn_25.png", title:"数据目录",operation:"catalog"},
+				{url:"image/toolbar/btn_26.png", title:"位置信息窗口",operation:"positionControl"},
+				{url:"image/toolbar/btn_27.png", title:"查询结果显示窗口",operation:"mapDocDataViewer"},
+				{url:"image/toolbar/btn_28.png", title:"条件输入",operation:"conditionInput"},
+				{url:"image/toolbar/btn_29.png", title:"编辑窗口",operation:"editControl"},
+				{url:"image/toolbar/btn_30.png", title:"统计图窗口",operation:"chartCtrl"},
+				{url:"image/toolbar/btn_31.png", title:"裁剪分析窗口",operation:"clipControl"},
+				{url:"image/toolbar/btn_32.png", title:"显示设置",operation:"displaySetWin"},
+				{url:"image/toolbar/btn_33.png", title:"测量",operation:"measureControl"},
+				{url:"image/toolbar/btn_35.png", title:"GPS",operation:"gpsControl"},
+			    ]);
+			private function itemSelectedHandler(event:DockItemEvent):void {
+				//Alert.show("Item " + event.index + " selected (" + dataProvider.getItemAt(event.index).title + ")");
+				var operation:String=this._dataProvider.getItemAt(event.index).operation;
+				switch(operation)
+				{
+					case "zoomin":
+					onSelectToolClick('zoomin',null);
+					break;
+					case "zoomout":
+					onSelectToolClick('zoomout',null);
+					break;
+					case "pan":
+					onSelectToolClick('pan',null);
+					break;
+					case "refresh":
+					onSelectToolClick('refresh',null);
+					break;
+					case "restore":
+					onSelectToolClick('restore',null);
+					break;
+					case "magnifier":
+					setVisibility(this.magnifier);
+					break;
+					case "eagle":
+					if(!isNull(this.eagleEye))onSelectToolClick('eagle',null);
+					break;
+					case "setmarker":
+					setMarker();
+					break;
+					//-------------------查询---------------------------//
+					case "SelectByHitting":
+					if(!isNull(this.mapDocDataViewer)) onSelectToolClick('SelectByHitting',this.mapDocDataViewer.selectByPoint);
+					break;
+					case "SelectByRect":
+					if(!isNull(this.mapDocDataViewer))onSelectToolClick('SelectByRect',this.mapDocDataViewer.selectByRect);
+					break;
+					case "SelectByCircle":
+					if(!isNull(this.mapDocDataViewer))onSelectToolClick('SelectByCircle',this.mapDocDataViewer.selectByCircle);
+					break;
+					case "SelectByLine":
+					if(!isNull(this.mapDocDataViewer))onSelectToolClick('SelectByLine',this.mapDocDataViewer.selectByLine);
+					break;
+					case "SelectByPolygon":
+					if(!isNull(this.mapDocDataViewer))onSelectToolClick('SelectByPolygon',this.mapDocDataViewer.selectByPolygon);
+					break;
+					case "SelectByAttribute":
+					if(!isNull(this.conditionInput))onSelectToolClick('',this.conditionInput.selectByAttCondition);
+					break;
+					case "SelectByHitAtt":
+					if(!isNull(this.conditionInput))onSelectToolClick('SelectByHitting',this.conditionInput.selectByPointAndCon);
+					break;
+					case "SelectByRectAtt":
+					if(!isNull(this.conditionInput))onSelectToolClick('SelectByRect',this.conditionInput.selectByRectAndCon);
+					break;
+					case "SelectByCircleAtt":
+					if(!isNull(this.conditionInput))onSelectToolClick('SelectByCircle',this.conditionInput.selectByCircleAndCon);
+					break;
+					case "SelectByLineAtt":
+					if(!isNull(this.conditionInput))onSelectToolClick('SelectByLine',this.conditionInput.selectByLineAndCon);
+					break;
+					case "SelectByPolygonAtt":
+					if(!isNull(this.conditionInput))onSelectToolClick('SelectByPolygon',this.conditionInput.selectByPolygonAndCon);
+					break;
+					//-----------------------------编辑-----------------------//
+					case "addPoint":
+					if(!isNull(this.editControl))onSelectToolClick('SelectByHitting',this.editControl.addPoint);
+					break;
+					case "addLine":
+					if(!isNull(this.editControl))onSelectToolClick('SelectByLine',this.editControl.addLine);
+					break;
+					case "addRegion":
+					if(!isNull(this.editControl))onSelectToolClick('SelectByPolygon',this.editControl.addPolygon);
+					break;
+					//---------------------------分析-------------------------//
+					case "circleClip":
+					if(!isNull(this.clipControl))onSelectToolClick('SelectByCircle',this.clipControl.clipDocByCircle);
+					break;
+					case "polygonClip":
+					if(!isNull(this.clipControl))onSelectToolClick('SelectByPolygon',this.clipControl.clipDocByPolygon);
+					break;
+					case "overlayAnalyse":
+					onSelectToolClick('overlayAnalyse',null);
+					break;
+					case "topoAnalyse":
+					setVisibility(this.topAnalyseWin);
+					break;
+					case "project":
+					onSelectToolClick('project',null);
+					break;
+					case "busAnalyse":
+					setVisibility(this.busAnalyseCtrl);
+					break;
+					case "netAnalyse":
+					onSelectToolClick('netAnalyse',null);
+					break;
+					//--------------------------视图--------------------------//
+					case "navigator":
+					setVisibility(this.navigator);
+					break;
+					case "catalog":
+					setVisibility(this.catalog);
+					break;
+					case "positionControl":
+					setVisibility(this.positionControl);
+					break;
+					case "mapDocDataViewer":
+					setVisibility(this.mapDocDataViewer);
+					break;
+					case "conditionInput":
+					setVisibility(this.conditionInput);
+					break;
+					case "editControl":
+					setVisibility(this.editControl);
+					break;
+					case "chartCtrl":
+					setVisibility(this.chartCtrl);
+					break;
+					case "clipControl":
+					setVisibility(this.clipControl);
+					break;
+					case "displaySetWin":
+					setVisibility(this.displaySetWin);
+					break;
+					case "measureControl":
+					setVisibility(this.measureControl);
+					break;
+					case "gpsControl":
+					setVisibility(this.gpsControl);
+					break;
+				}
+			}
+			
+			/**
+			 * 窗口初始化
+			 */ 
+			private function init():void
+			{
+				try
+				{
+					ExternalInterface.addCallback("flOnSelectToolClick", flOnSelectToolClick);
+				}
+				catch (err:Error)
+				{
+				}
+			}
+			/**
+			 * 工具触发函数
+			 */ 
+			private function onSelectToolClick(activeTool:String, callback:Function, exterFun:String="", enableExterCallBack:Boolean=true):void
+			{
+				if (this.imsmap == null)
+				{
+					Alert.show("Toolbar控件的imsmap属性为空，请赋值。");
+					return;
+				}
+				var isExter:Boolean = exterFun == "" ? false : true;
+				switch (activeTool.toLowerCase())
+				{
+					case "zoomin":
+						this.imsmap.setCurOper(IMSOperType.ZoomIn);
+						break;
+					case "zoomout":
+						this.imsmap.setCurOper(IMSOperType.ZoomOut);
+						break;
+					case "pan":
+						this.imsmap.setCurOper(IMSOperType.Drag);
+						break;
+					case "refresh":
+						this.imsmap.refresh();
+						break;
+					case "restore":
+						this.imsmap.restore();
+						break;
+					case "selectbyhitting":
+					case "selectbyhittingandatt":
+						this.imsmap.setCurOper(2001);
+						if (isExter && !enableExterCallBack)
+						{
+							callback = activeTool == "SelectByHitting" ? this.mapDocDataViewer.selectByPoint : this.conditionInput.selectByPointAndCon;
+							isExter = false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbyline":
+					case "selectbylineandatt":
+						this.imsmap.setCurOper(2005);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByLine" ? this.mapDocDataViewer.selectByLine : this.conditionInput.selectByLineAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+					case "selectbyrect":
+					case "selectbyrectandatt":
+						this.imsmap.setCurOper(2002);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByRect" ? this.mapDocDataViewer.selectByRect : this.conditionInput.selectByRectAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbycircle":
+					case "selectbycircleandatt":
+						this.imsmap.setCurOper(2003);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByCircle" ? this.mapDocDataViewer.selectByCircle : this.conditionInput.selectByCircleAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbypolygon":
+					case "selectbypolygonandatt":
+						this.imsmap.setCurOper(2004);
+						if (isExter && !enableExterCallBack)
+						{
+							callback = activeTool == "SelectByPolygon" ? this.mapDocDataViewer.selectByPolygon : this.conditionInput.selectByPolygonAndCon;
+							isExter = false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+					case "eagle":
+						if(this.eagleEye!=null)
+						{
+							this.eagleEye.switchEagleEye();
+						}
+						break;
+					case "overlayanalyse":
+						this.setVisibility(this.overlayAnlyControl);
+						this.overlayAnlyControl.vectorObj=this.imsmap.activeMapDoc;
+						break;
+					case "netanalyse":
+						this.setVisibility(this.netAnalyseCtrl);
+						this.netAnalyseCtrl.vectorObj=this.imsmap.activeMapDoc;
+						break;
+					case "project":
+						this.setVisibility(this.projectCtrlWin);
+						this.projectCtrlWin.vectorObj=this.imsmap.activeMapDoc;
+						break;
+					default:
+						this.imsmap.setCurOper(IMSOperType.Drag);
+						callback();
+						break;
+				}
+			}
+			/**
+			 * 供外部JS调用的工具触发函数
+			 */ 
+			private function flOnSelectToolClick(activeTool:String, callback:Function, exterFun:String="", enableExterCallBack:Boolean=true):void
+			{
+				switch(activeTool.toLowerCase())
+				{
+					case "addpoint":
+						this.onSelectToolClick("selectbyhitting",this.editControl.addPoint);
+						break;
+					case "addline":
+						this.onSelectToolClick("selectbyline",this.editControl.addLine);
+						break;
+					case "addpolygon":
+						this.onSelectToolClick("selectbypolygon",this.editControl.addPolygon);
+						break;
+					case "circleclip":
+						this.onSelectToolClick("selectbycircle",this.clipControl.clipDocByCircle);
+						break;
+					case "polygonclip":
+						this.onSelectToolClick("selectbypolygon",this.clipControl.clipDocByPolygon);
+						break;
+					default: 
+						onSelectToolClick(activeTool,callback,exterFun,enableExterCallBack);
+						break;
+				}
+			}
+			private function addMapEvent(evtType:String,fun:Function):void
+			{
+				this.imsmap.addEventListener(evtType,fun);
+				this.lastEvent=evtType;
+				this.lastCallFun=fun;
+			}
+			private function removeMapEvent(evtType:String,fun:Function):void
+			{
+				if(evtType!=null&&fun!=null)
+				{
+					this.imsmap.removeEventListener(evtType,fun);
+				}
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				removeMapEvent(this.lastEvent,this.lastCallFun);
+			}
+			/**
+			 * 设置显示窗口
+			 */ 
+			private function setVisibility(obj:Object):void
+			{
+				if(!isNull(obj))
+				{
+					if(!UIComponent(obj).visible)
+			       {
+						this.PushFore(obj);
+						UIComponent(obj).visible=true;
+			       }			      
+					var irisOut:Iris=new Iris();
+					irisOut.duration=1000;
+					irisOut.showTarget=true;
+					UIComponent(obj).setStyle("hideEffect",irisOut);			      
+					UIComponent(obj).visible = !UIComponent(obj).visible;
+					
+				}
+			    
+			}
+			private function PushFore(obj:Object):void
+			{
+					var effect:Panel=new Panel();
+					effect.width=0;
+					effect.height=0;
+					effect.setStyle("headerHeight",0);
+					effect.setStyle("horizontalGap",0);				
+					effect.setStyle("verticalGap",0);				
+					effect.setStyle("borderThicknessRight",0);
+					effect.setStyle("borderThicknessLeft",0);
+					effect.setStyle("borderThicknessBottom",0);
+					effect.setStyle("borderThicknessTop",0);
+					effect.alpha=1;
+					UIComponent(obj).parent.addChild(effect);				
+					var e:Push=new Push(effect);
+				    e.lightingStrength=0;
+					e.siblings = [ obj];
+					e.direction = DistortionConstants.TOP;
+					e.horizontalLightingLocation = DistortionConstants.RIGHT;
+					e.duration = 1000;
+					e.play();	
+					UIComponent(obj).parent.removeChild(effect);
+			}
+			 private function setMarker():void
+			 {
+            	if(!isNull(this.markEditor))
+			 		this.markEditor.setMarker();
+			 }
+			public function isNull(obj:Object,showMsg:Boolean=true):Boolean
+			{
+				if(obj==null&&showMsg)
+					Alert.show("未找到相就控件，可能原因是未创建相应控件或未将ToolBar与目标控件关联！", "提示");
+				return obj==null?true:false;
+			}
+			
+		]]>
+	</mx:Script>
+	 <!-- dock -->
+	 <core:Dock horizontalAlign="center"  backgroundAlpha="0.2" backgroundColor="#000000" id="hdock" styleName="horizontalDock"  
+		fixed="true" dockSide="bottom" visible="false"
+		dataProvider="{disPlayDataProvider}"
+		itemRenderer="{itemRenderer}" labelRenderer="{labelRenderer}" labelField="title"
+		dockItemClick="itemSelectedHandler(event)"
+	 	top="0" height="80" right="0" left="0"
+	 />
+
+</mx:Canvas>

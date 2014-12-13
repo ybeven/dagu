@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" minWidth="955" minHeight="600" xmlns:map="zdims.map.*" xmlns:control="zdims.control.*" height="1098" width="951"
+				creationComplete="init()" xmlns:drawing="zdims.drawing.*" xmlns:layer="zdims.control.layer.*">
+
+	
+
+	<mx:HBox width="931" x="180">
+		<control:Toolbar imsmap="{map}" mapDocDataViewer="{docDataViewer}" conditionInput="{conditionCtrl}">
+		</control:Toolbar>
+		<mx:Button label="按钮" click="printjob()"/>
+	</mx:HBox>
+	<mx:HBox width="931" x="180">
+		<mx:VBox height="100%">
+			<mx:HBox width="100%">
+				<control:IMSCatalog imsmap="{map}" height="556" width="140">
+				</control:IMSCatalog>
+			</mx:HBox>
+		</mx:VBox>
+		<map:IMSMap width="772" height="558" xMinMap="-750.102661" yMinMap="10.240311" xMaxMap="850.192861" yMaxMap="1268.189173" id="map"  initShowLevel="0">
+			<map:VectorMapDoc id="mapdoc" x="2" y="30" mapDocName="甘肃省.Map" serverAddress="1.202.222.147:8005" >   <!--   1.202.222.147:8005-->
+			</map:VectorMapDoc>
+		</map:IMSMap>
+	</mx:HBox>
+	<mx:HBox width="935" height="396" x="178">
+		<mx:VBox height="100%">
+			<control:ConditionInput width="280" visible="false" imsmap="{map}" mapDocDataViewer="{docDataViewer}" id="conditionCtrl" height="314">
+			</control:ConditionInput>
+		</mx:VBox>
+		<mx:VBox height="100%">
+			<control:MapDocDataViewer id="docDataViewer" imsmap="{map}" visible="false" width="522" height="266">
+			</control:MapDocDataViewer>
+		</mx:VBox>
+		<mx:VBox height="100%">
+		</mx:VBox>
+	</mx:HBox>
+	<layer:LayerDataViewer right="10" top="10" id="layerDataRlt"   
+						   imsmap="{map}"   visible="false">
+	</layer:LayerDataViewer>
+
+	<mx:Script>
+		<![CDATA[
+			import flash.net.navigateToURL;
+			
+			import flashx.textLayout.formats.Float;
+			
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.printing.FlexPrintJob;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import zdims.control.Marker;
+			import zdims.control.MarkerContent;
+			import zdims.control.MarkerEdit;
+			public function init():void
+			{
+				/*var returnValue=XML("<List><ListItem><id>http://localhost/minedata/ListMineDetails/30</id><name>湖南省地质环境保护条例</name><xpos>99</xpos><ypos>88</ypos><enterpriseName>湖南省</enterpriseName></ListItem><ListItem><id>http://localhost/minedata/ListMineDetails/31</id><name>测试矿山</name><xpos>567.4</xpos><ypos>345.9</ypos><enterpriseName>111</enterpriseName></ListItem><ListItem><id>http://localhost/minedata/ListMineDetails/32</id><name>aaa牌矿山</name><xpos>500.3</xpos><ypos>700.6</ypos><enterpriseName>啊啊啊企业</enterpriseName></ListItem></List>");
+				
+				for each ( var item in returnValue.ListItem )
+				{
+					marking(item.xpos,item.ypos,item.name,item.enterpriseName,item.id);
+					
+				}
+				*/
+				
+				var myService:HTTPService=new HTTPService();
+				myService.url="../admin2.php";
+				myService.method="Get";
+				myService.showBusyCursor=true;
+				myService.resultFormat="e4x";
+				myService.addEventListener(ResultEvent.RESULT,SelectResultHandler);
+				myService.addEventListener(FaultEvent.FAULT,faultHandler);
+				myService.send();
+				
+			
+				
+				
+			}
+			
+			private function SelectResultHandler(e:ResultEvent):void{
+				var returnValue:XML=XML(e.result);
+				
+				for each ( var item:Object in returnValue.ListItem )
+				{
+					marking(item.xpos,item.ypos,item.name,item.enterpriseName,item.id);
+				
+				}
+				
+							
+			}
+			
+			
+			
+			private function faultHandler(e:ResultEvent):void{
+				var err:String="wrong!!!";
+				mx.controls.Alert.show(e.message.toString(),err);
+			}
+			public function marking(numx:Number, numy:Number, name:String, organ:String, url:String):void
+			{
+				var marker:Marker=new Marker();
+				marker.imsmap=this.map;
+				marker.logicX=numx;
+				marker.logicY=numy;
+				marker.enableShowName=true;
+				marker.name=name;
+				marker.setIconSrc("image/mark/p1.gif");
+				marker.setMarkerContent(name,organ,url);
+				this.map.addChild(marker);
+				
+			}
+			public function printjob():void{
+				
+				var pj:FlexPrintJob=new FlexPrintJob();
+				if(pj.start()!=true)
+				{
+					return;
+				}
+				pj.addObject(map);
+				pj.send();
+			}
+			
+		]]>
+	</mx:Script>
+	
+</mx:Application>

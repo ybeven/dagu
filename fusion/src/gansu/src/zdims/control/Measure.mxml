@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 测量窗口（实现测量距离，测量区域面积） -->
+<IMSWindow xmlns="zdims.control.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="286"
+		   height="138"
+		   title="长度、面积测量">
+	<mx:RadioButtonGroup id="radiogroup1"/>
+	<mx:RadioButton x="83"
+					y="38"
+					label="测长度"
+					groupName="radiogroup1"
+					click="setMeasureType('len')"/>
+	<mx:RadioButton x="152"
+					y="38"
+					label="测面积"
+					groupName="radiogroup1"
+					click="setMeasureType('area')"/>
+	<mx:Label x="10"
+			  y="10"
+			  text="友情提示：单击地图选取测量点，双击结束！"/>
+	<mx:Label x="10"
+			  y="40"
+			  text="测量类型："/>
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			import mx.controls.Text;
+			import mx.core.ApplicationGlobals;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Application;
+			
+			import zdims.draw.EDrawType;
+			import zdims.draw.IMSCanvas;
+			import zdims.event.IMSMapEvent;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.util.GraphicsDraw;
+			import zdims.util.IMSOperType;
+			
+			private var measurePnts:Array = new Array();
+			private var measureType:int;
+			private var measureLabel:Text;
+			[Inspectable(category="MapGisIMS")]
+			public var unitLength:Number = 1;
+			
+			public override function init():void
+			{
+				super.init();
+			}
+			public function onMapChange(e:Event):void
+			{
+				var points:Array=this.imsmap.graphicCanvas.getSelectedLogicDotsArr();
+				if (points.length > 0 && this.imsmap.graphicCanvas.imsDraw.target != null && (this.imsmap.operType == IMSOperType.MeasureDistance || this.imsmap.operType == IMSOperType.MeasureArea))
+				{
+					this.imsmap.graphicCanvas.clear();//imsDraw.target.graphics.clear();
+					var wxy:Point=points[0];
+					if(this.imsmap.operType==IMSOperType.MeasureDistance)
+						this.imsmap.graphicCanvas.startDrawLine(wxy.x,wxy.y);
+					else
+						this.imsmap.graphicCanvas.startDrawPolygon(wxy.x,wxy.y);
+					var dotNum:int=points.length;
+					for(var i:int=1;i<dotNum;i++)
+					{
+						wxy=this.imsmap.logicToScreen(points[i].x,points[i].y);
+						if(this.imsmap.operType==IMSOperType.MeasureDistance)
+							this.imsmap.graphicCanvas.drawLine(wxy.x,wxy.y);
+						else
+							this.imsmap.graphicCanvas.drawPolygon(wxy.x,wxy.y);
+					}
+					this.measureLabel.x = wxy.x;
+					this.measureLabel.y = wxy.y;
+				}
+			}
+			/**
+			 * 设置测量类型
+			 */ 
+			public function setMeasureType(measureTp:String):void
+			{
+				clearMeasurePnts(null);
+				if (this.imsmap == null)
+				{
+					Alert.show("imsmap为空，请赋值！");
+					return;
+				}
+
+				if (measureTp == "len")
+				{
+					this.imsmap.setCurOper(IMSOperType.MeasureDistance);
+				}
+				else if (measureTp == "area")
+				{
+					this.imsmap.setCurOper(IMSOperType.MeasureArea);
+				}
+				this.measureType = this.imsmap.operType;
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_DOUBLECLICK, clearMeasurePnts);
+				this.imsmap.addEventListener(IMSMapMouseEvent.MAP_DOUBLECLICK, clearMeasurePnts);
+				this.imsmap.removeEventListener(MouseEvent.MOUSE_MOVE, onMapMouseMove);
+				this.imsmap.addEventListener(MouseEvent.MOUSE_MOVE, onMapMouseMove);
+				this.imsmap.addEventListener(IMSMapMouseEvent.MAP_MOUSEUP, addMeasurePoint);
+				this.imsmap.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+			}
+			
+			private function onOperTypeChange(e:Event):void
+			{
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP,addMeasurePoint);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+			}
+			/**
+			 * 添加测量标记点
+			 */ 
+			public function addMeasurePoint(e:IMSMapMouseEvent):void
+			{
+				if (this.measureLabel == null)
+				{
+					this.measureLabel = new Text();
+					this.measureLabel.text = "";
+					this.measureLabel.name = "measureResultLabel";
+					this.measureLabel.setStyle("fontSize", 12);
+					this.measureLabel = this.imsmap.addChild(this.measureLabel) as Text;
+				}
+				var pnt:IMSPoint = new IMSPoint();
+				pnt.fillAlpha = 0.2;
+				pnt.borderSize = 1;
+				pnt.radius = 4;
+				pnt.logicX = this.imsmap.mouseDownLogicPnt.x;
+				pnt.logicY = this.imsmap.mouseDownLogicPnt.y;
+				pnt.visible = true;
+				pnt.enableDrag = false;
+				
+				this.measureLabel.addEventListener(MouseEvent.MOUSE_MOVE,this.imsmap.onMouseMove);
+				this.measureLabel.addEventListener(MouseEvent.MOUSE_UP,this.imsmap.onMouseUp);
+				this.measureLabel.addEventListener(MouseEvent.MOUSE_DOWN,this.imsmap.onMouseDown);
+				this.measureLabel.addEventListener(MouseEvent.CLICK,this.imsmap.onMouseDown);
+				this.measureLabel.doubleClickEnabled=true;
+				this.measureLabel.addEventListener(MouseEvent.DOUBLE_CLICK,this.imsmap.onDoubleClick);
+				
+				pnt.name="measurePoint" + this.measurePnts.length;
+				this.measurePnts[this.measurePnts.length] = this.imsmap.addChild(pnt);
+				pnt.updatePosition();
+				pnt.enableUpdatePosition=false;
+				this.measureLabel.text = this.measureType == IMSOperType.MeasureDistance ? getLength() : getArea();
+				this.imsmap.setChildIndex(this.imsmap.getChildByName(this.measureLabel.name), this.imsmap.getChildren().length - 1);
+				this.measureLabel.x = this.imsmap.contentMouseX;
+				this.measureLabel.y = this.imsmap.contentMouseY;
+//				this.imsmap.isMouseDown=false;
+			}
+			/**
+			 * 获取长度
+			 */ 
+			public function getLength():String
+			{
+				if (this.measurePnts.length < 2)
+				{
+					return "长度:0";
+				}
+				var pnt:IMSPoint = this.measurePnts[this.measurePnts.length - 1];
+				var lastPnt:IMSPoint = this.measurePnts[this.measurePnts.length - 2];
+				var length:Number = Math.sqrt(Math.pow(pnt.logicX - lastPnt.logicX, 2) + Math.pow(pnt.logicY - lastPnt.logicY, 2));
+				return "长度:" + (parseFloat(this.measureLabel.text.split(":")[1]) + length * this.unitLength).toString();
+			}
+			/**
+			 * 获取面积
+			 */ 
+			public function getArea():String
+			{
+				if (this.measurePnts.length < 3)
+				{
+					return "面积:0";
+				}
+				var points:Array=this.imsmap.graphicCanvas.getSelectedLogicDotsArr();
+				var dotNum:int = points.length - 1;
+				var area:Number = 0;
+				var j:int;
+				var xjyi:Number;
+				var xiyj:Number;
+				var xydiff:Number;
+				j = dotNum;
+
+				for (var i:int = 0; i <= dotNum; i++)
+				{
+					xiyj = points[i].x * points[j].y;
+					xjyi = points[j].x * points[i].y;
+					xydiff = (xiyj - xjyi);
+					area += xydiff;
+					j = i;
+				}
+				area = Math.abs(area / 2) * this.unitLength;
+				return "面积:" + area.toString();
+			}
+			/**
+			 * 清除测量结果
+			 */ 
+			public function clearMeasurePnts(e:Event):void
+			{
+				for (var i:int = 0; i < this.measurePnts.length; i++)
+				{
+					this.imsmap.removeChild(this.imsmap.getChildByName(IMSPoint(this.measurePnts[i]).name));
+				}
+				this.measurePnts = new Array();
+				this.imsmap.graphicCanvas.clearAll();
+				this.imsmap.graphicCanvas.clear();
+				this.imsmap.graphicCanvas.clearArray();
+				if (this.measureLabel != null)
+					this.measureLabel.text = "";
+			}
+			/**
+			 * 移动地图回调函数	
+			 */ 
+			public function onMapMouseMove(e:Event):void
+			{
+				if (this.imsmap.operType != this.measureType)
+				{
+					clearMeasurePnts(null);
+					this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_DOUBLECLICK, clearMeasurePnts);
+					this.imsmap.removeEventListener(MouseEvent.MOUSE_MOVE, onMapMouseMove);
+					return;
+				}
+			}
+			/**
+			 * 关闭窗口触发函数
+			 */ 
+			public override function close():void
+			{
+				clearMeasurePnts(null);
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_DOUBLECLICK, clearMeasurePnts);
+				this.imsmap.removeEventListener(MouseEvent.MOUSE_MOVE, onMapMouseMove);
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP, addMeasurePoint);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				this.imsmap.setCurOper(IMSOperType.Drag);
+				super.close();
+			}
+		]]>
+	</mx:Script>
+	<mx:Button x="93"
+			   y="70"
+			   label="清除测量结果"
+			   click="setMeasureType(this.measureType==IMSOperType.MeasureDistance?'len':'area')"/>
+
+</IMSWindow>

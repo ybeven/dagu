@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="utf-8"?>
+<IMSWindow xmlns="zdims.control.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="225" height="360" title="请输入标注信息" creationComplete="init1()" close="cancleAdd()">
+	<mx:Canvas x="0" y="0" width="100%" height="100%" id="content">
+	<mx:HBox x="0" y="0" width="100%" height="30">
+		<mx:Text text="名称：" width="45"  fontSize="13"/>
+		<mx:TextInput height="30" width="100%" id="text_name"/>
+	</mx:HBox>
+	<mx:HBox x="0" y="40" width="100%" height="60">
+		<mx:Text text="简介："  fontSize="13"/>
+		<mx:TextInput height="54" width="100%" id="text_content"/>
+	</mx:HBox>
+	<mx:Canvas x="0" y="110" width="100%" height="40">
+		<mx:Text text="图像" fontSize="13" height="20" x="0" y="0"/>
+		<mx:Text text="地址：" fontSize="13" height="20" x="0" y="16"/>
+		<mx:TextInput height="40"  id="text_imagesource" x="52" y="0" width="100%"/>
+		<!--<mx:Button label="浏览" id="b1" click="addBrowse(b1)" height="30"/>-->
+	</mx:Canvas>
+	<mx:Canvas width="100%" height="97" x="0" y="158">
+		<mx:Label text="经度：" fontSize="13" width="44" />
+		<mx:TextInput width="100%" id="Longitude"  x="52" y="0"/>
+		<mx:Label text="纬度：" fontSize="13"  x="0" y="32"/>
+		<mx:TextInput width="100%" id="Latitude"  x="52" y="31"/>
+	</mx:Canvas>
+	<mx:Canvas x="0" y="221" width="100%">
+		<mx:Label text="点击右图选择合适的图标：" width="163" fontSize="13" height="40"/>
+		<mx:Image source="image/mark/marker2/image2/p7.png" x="163" y="0" width="40" height="40" click="selectedImage()" buttonMode="true"/>
+	</mx:Canvas>	
+	</mx:Canvas>
+	<mx:Canvas  width="100%" height="100%" backgroundColor="#FFFFFF" visible="false" x="0" y="10" id="imageSelect">
+	<mx:HBox x="0" y="0" width="100%" height="40">
+		<mx:Label text="您所选图标为：" width="120" fontSize="13" height="40"/>
+		<mx:Image source="image/mark/marker2/image2/p1.png" width="40" height="40" id="preImage"/>
+	</mx:HBox>
+	<mx:ButtonBar y="45" id="ButtonBar" dataProvider="viewstack1" fontSize="12" height="25" themeColor="#090909"  x="0" buttonMode="true" itemClick="change()">
+	</mx:ButtonBar>
+	<mx:ViewStack x="0" y="65" id="viewstack1" width="100%" height="100%">
+		<mx:Canvas label="自定义" width="100%" height="100%" >
+				<mx:Image source="image/mark/marker2/image2/p1.png" id="p1" creationComplete="addEvent(p1)" x="0" y="10" />
+				<mx:Image source="image/mark/marker2/image2/p2.png" id="p2" creationComplete="addEvent(p2)" x="45" y="10"/>					
+				<mx:Image source="image/mark/marker2/image2/p3.png" id="p3" creationComplete="addEvent(p3)" x="90" y="10"/>				
+				<mx:Image source="image/mark/marker2/image2/p4.png" id="p4" creationComplete="addEvent(p4)" x="135" y="10"/>				
+				<mx:Image source="image/mark/marker2/image2/p5.png" id="p5" creationComplete="addEvent(p5)" x="180" y="10"/>					
+				<mx:Image source="image/mark/marker2/image2/p6.png" id="p6" creationComplete="addEvent(p6)" x="0" y="55"/>			
+				<mx:Image source="image/mark/marker2/image2/p7.png" id="p7" creationComplete="addEvent(p7)" x="45" y="55"/>					
+				<mx:Image source="image/mark/marker2/image2/p8.png" id="p8" creationComplete="addEvent(p8)" x="90" y="55"/>				
+				<mx:Image source="image/mark/marker2/image2/p9.png" id="p9" creationComplete="addEvent(p9)" x="135" y="55"/>					
+				<mx:Image source="image/mark/marker2/image2/p10.png" id="p10" creationComplete="addEvent(p10)" x="180" y="55"/>					
+				<mx:Image source="image/mark/marker2/image2/p11.png" id="p11" creationComplete="addEvent(p11)" x="0" y="100"/>				
+				<mx:Image source="image/mark/marker2/image2/p12.png" id="p12" creationComplete="addEvent(p12)" x="45" y="100"/>			
+		</mx:Canvas>
+		<mx:Canvas label="交通类" width="100%" height="100%">
+			<mx:Image source="image/mark/marker2/Traffic/jp1.png" width="40" height="40" x="0"  y="10" id="jp1" creationComplete="addEvent(jp1)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp2.png" width="40" height="40" x="45" y="10" id="jp2" creationComplete="addEvent(jp2)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp3.png" height="40" width="40" x="90" y="10" id="jp3" creationComplete="addEvent(jp3)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp4.png" width="40" height="40" x="135" y="10" id="jp4" creationComplete="addEvent(jp4)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp5.png" height="40" width="40" x="180" y="10" id="jp5" creationComplete="addEvent(jp5)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp6.png" height="40" width="40" x="0" y="55" id="jp6" creationComplete="addEvent(jp6)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp7.png" height="40" width="40" x="45" y="55" id="jp7" creationComplete="addEvent(jp7)"/>	
+			<mx:Image source="image/mark/marker2/Traffic/jp8.png" height="40" width="40" x="90" y="55" id="jp8" creationComplete="addEvent(jp8)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp9.png" width="40" height="40" x="135" y="55" id="jp9" creationComplete="addEvent(jp9)"/>
+			<mx:Image source="image/mark/marker2/Traffic/jp10.png" width="40" height="40" x="180" y="55" id="jp10" creationComplete="addEvent(jp10)"/>	
+		</mx:Canvas>
+		<mx:Canvas label="生活类" width="100%" height="100%">
+			<mx:Image x="135" y="10" source="image/mark/marker2/Life/sp4.png" width="40" height="40" id="sp4" creationComplete="addEvent(sp4)"/>
+			<mx:Image x="45" y="10" source="image/mark/marker2/Life/sp2.png" width="40" height="40" id="sp2" creationComplete="addEvent(sp2)"/>
+			<mx:Image x="45" y="55" source="image/mark/marker2/Life/sp8.png" width="40" height="40" id="sp8" creationComplete="addEvent(sp8)"/>
+			<mx:Image x="90" y="55" source="image/mark/marker2/Life/sp9.png" width="40" height="40" id="sp9" creationComplete="addEvent(sp9)"/>
+			<mx:Image x="0" y="100" source="image/mark/marker2/Life/sp6.png" width="40" height="40" id="sp6" creationComplete="addEvent(sp6)"/>
+			<mx:Image x="0" y="10" source="image/mark/marker2/Life/sp1.png" width="40" height="40" id="sp1" creationComplete="addEvent(sp1)"/>
+			<mx:Image x="0" y="55" source="image/mark/marker2/Life/sp7.png" width="40" height="40" id="sp7" creationComplete="addEvent(sp7)"/>
+			<mx:Image x="135" y="55" source="image/mark/marker2/Life/sp10.png" height="40" width="40" id="sp10" creationComplete="addEvent(sp10)"/>
+			<mx:Image x="180" y="10" source="image/mark/marker2/Life/sp5.png" height="40" width="40" id="sp5" creationComplete="addEvent(sp5)"/>
+			<mx:Image x="90" y="10" source="image/mark/marker2/Life/sp3.png" height="40" width="40" id="sp3" creationComplete="addEvent(sp3)"/>
+			<mx:Image x="180" y="55" source="image/mark/marker2/Life/sp11.png" height="40" width="40" id="sp11" creationComplete="addEvent(sp11)"/>
+			<mx:Image x="45" y="100" source="image/mark/marker2/Life/sp12.png" height="40" width="40" id="sp12" creationComplete="addEvent(sp12)"/>
+		</mx:Canvas>
+		<!--<mx:Canvas label="本地图标" width="100%" height="100%">
+			<mx:HBox  height="49" y="10">
+				<mx:Text text="图标地址:" fontSize="13"/>
+				<mx:TextInput height="31" width="163" id="text_imagesource0"/>
+				<mx:Button label="浏览" width="51" height="30" fontSize="12" id="b2" click="addBrowse(b2)"/>
+			</mx:HBox>
+		</mx:Canvas>-->
+	</mx:ViewStack>
+   </mx:Canvas>	
+    <mx:Button x="38.5" y="292" label="确定" id="sure" buttonMode="true" click="addMark()"/>
+	<mx:Button x="126.5" y="292" label="取消" id="cancle" click="cancleAdd()" buttonMode="true"/>
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+		    import zdims.map.IMSMap;
+		    import flash.events.DataEvent;
+            import flash.events.Event;
+            import flash.events.ProgressEvent;
+            import flash.events.SecurityErrorEvent;
+            import flash.events.IOErrorEvent;
+            import flash.net.FileReference;
+            import flash.net.URLRequest;
+            import flash.external.ExternalInterface;
+            import mx.controls.Alert;
+            private var file:FileReference;
+			public var markTitle:String="请输入标注信息";
+			public var markName:String="";
+			public var markContent:String="";
+			public var markImageSource:String="";
+			public var ImageSource:String="image/mark/marker2/image2/p1.png";
+			public var _image:Image;
+			//public var browse:BrowseControl;
+			public var _markFlash:AdvancedMarker;
+			public var _addOrEdit:Boolean;
+			/**
+			 * 当点击“添加标注”按钮时触发
+			 */ 
+			public function setMarker():void
+            {
+            	if(this.imsmap==null)
+            	{
+            		Alert.show("imsmap属性为空，请赋值！", "提示");
+					return;
+            	}
+            	if(this._markFlash!=null)
+            	{
+            		Alert.show("请先完成上一个标注的添加！", "提示");
+					return;
+            	}
+            	else
+            	{
+            		this.visible=true;
+            		this._markFlash=new AdvancedMarker();
+            		this.imsmap.addChildAt(this._markFlash,this.imsmap.layerLenth+1);
+            		this._markFlash._markEdit=this;
+            	}
+            }
+            /**
+            * 标注编辑对话框的初始化
+            */ 
+            public function init1():void
+			{
+				this.title=markTitle;
+				this.text_name.text=markName;
+				this.text_content.text=markContent;
+				this.text_imagesource.text=markImageSource;
+				this.imageInit();
+			}
+			/**
+			 * 取消添加或取消编辑
+			 * 取消添加---直接将待编辑的标注移除
+			 * 取消编辑---还原待编辑的标注
+			 */ 
+			public function cancleAdd():void
+			{
+				if(this.imageSelect.visible==true)
+			    {
+			    	this.title="请输入标注信息";
+			    	this.visible=true;
+			    	this.imageSelect.visible=false;
+					this.content.visible=true;
+					if(this._markFlash.markerInfo!=null)
+					{
+						this._markFlash.icon0.source=this._markFlash._copyImageSouce;
+					}
+					else
+					{
+						this._markFlash.icon0.source="image/mark/marker2/image2/p1.png";
+					}
+			    }
+			    else
+			    {
+					if(this._addOrEdit==true)
+					{
+						this.imsmap.removeChild(this._markFlash);
+					}
+					else
+					{
+						if(this._markFlash!=null)
+						{
+							this._markFlash.logicX=this._markFlash._copyLogic[0];
+							this._markFlash.logicY=this._markFlash._copyLogic[1];
+							this._markFlash.icon0.source=this._markFlash._copyImageSouce;
+					    	this._markFlash.updatePosition();
+					    	this._markFlash.icon0.addEventListener(MouseEvent.MOUSE_OVER,this._markFlash.onMarkMouseOver);
+	             	   	 	this._markFlash.icon0.addEventListener(MouseEvent.CLICK,this._markFlash.onMarkClick);
+				    		this._markFlash.stopEdit();
+				  		}
+					}
+					this._markFlash=null;
+					this.visible=false;
+					this.init1();
+			    }
+			}
+			/**
+			 * 添加完成或编辑完成
+			 * 添加完成---设置标注的内容框内容为编辑对话框的内容
+			 * 编辑完成---首先将原标注的内容框移除
+			 */ 
+			public function addMark():void
+			{
+				if(this.imageSelect.visible==true)
+			    {
+			    	this.title="请输入标注信息";
+			    	this.imageSelect.visible=false;
+					this.content.visible=true;
+					
+			    }
+			    else
+			    {
+			    	if(this._markFlash==null)
+			    	{
+			    		this.setMarker();
+			    		return;
+			    	}
+					if(this._markFlash.markerInfo!=null)
+					{
+						if(this.imsmap.contains(this._markFlash.markerInfo))
+							this.imsmap.removeChild(this._markFlash.markerInfo);
+				    	this._markFlash.markerInfo=null;
+				    	this._markFlash.icon0.addEventListener(MouseEvent.MOUSE_OVER,this._markFlash.onMarkMouseOver);
+             	   	 	this._markFlash.icon0.addEventListener(MouseEvent.CLICK,this._markFlash.onMarkClick);
+					}
+					this._markFlash.setMarkerContent(this.text_name.text,this.text_content.text,this.text_imagesource.text);
+					this._markFlash.stopEdit();					
+					this.visible=false;
+					this.init1();
+			    }
+			}
+			/**
+			 * 设置待选图标的初始状态
+			 */ 
+			public function addEvent(key:Image):void
+			{
+				key.alpha=1;
+				key.buttonMode=true;
+				key.addEventListener(MouseEvent.MOUSE_OVER,onMarkMouseOver);
+				key.addEventListener(MouseEvent.CLICK,onClick);
+			    key.addEventListener(MouseEvent.MOUSE_OUT,onMarkMouseOut);
+			}
+			/**
+			 * 设置图标被选后的状态
+			 */ 
+			 public function imageChoosed(key:Image):void
+			 {
+			 	key.buttonMode=false;
+				key.alpha=0.5;
+				key.removeEventListener(MouseEvent.MOUSE_OUT, onMarkMouseOut);
+				key.removeEventListener(MouseEvent.MOUSE_OVER,onMarkMouseOver);
+				key.removeEventListener(MouseEvent.CLICK,this.onClick);
+			 }
+			/**
+			 * 鼠标单击图标事件
+			 */ 
+			 public function onClick(e:MouseEvent):void
+			 {
+				e.target.x-=2;
+				e.target.y+=2;
+				if(_image!=null)
+				{
+					this.addEvent(_image);
+				}
+				_image=(e.currentTarget as Image);
+				this.imageChoosed(e.currentTarget as Image);
+				ImageSource=(_image.source as String);
+				this.preImage.source=ImageSource;	
+			}
+			/**
+			 * 鼠标移上图标事件
+			 */ 
+			public function onMarkMouseOver(e:MouseEvent):void
+			{
+				e.target.x+=2;
+			    e.target.y-=2;
+			}
+			/**
+			 * 鼠标移出图标事件
+			 */ 
+			public function onMarkMouseOut(e:MouseEvent):void
+			{
+				e.target.x-=2;
+				e.target.y+=2;
+			}
+			/**
+			 * 设置图标选中时的状态--变为半透明
+			 */ 
+			public function change():void
+			{
+				this.ButtonBar.alpha=05;
+			}
+			/**
+			 * 点击“选择图标按钮”触发事件
+			 */
+			public function selectedImage():void
+			{
+				this.title="请选择合适的图标";
+				this.content.visible=false;
+				this.imageSelect.visible=true;
+				this.imageInit();
+			}
+			/**
+			 * 选择图标窗口的初始化
+			 */
+			public function imageInit():void
+			{
+				if(_image!=null)
+				{
+					this.addEvent(_image);
+				    _image=null;
+				   
+				}
+				this.preImage.source="image/mark/marker2/image2/p1.png";
+				viewstack1.selectedIndex=0;
+			}
+			/**
+			 * 上传本地图标或图像
+			 */ 
+            private function addBrowse(button:Button):void
+            {
+            	file = new FileReference();
+                file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, loadServerData);
+                file.addEventListener(Event.CANCEL, cancel);
+                file.addEventListener(Event.OPEN, open);
+                file.addEventListener(Event.SELECT, selectHandle);
+                file.addEventListener(IOErrorEvent.IO_ERROR, function(e:IOErrorEvent):void
+                                                        {
+                                                            trace("ioerror...");
+                                                            ExternalInterface.call("alert", "IO");
+                                                         });
+           		file.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(e:SecurityErrorEvent):void
+                                                                    {	
+                                                                        ExternalInterface.call("alert", "safe");	
+                                                                        trace("safeerror...");
+                                                                     });
+           		file.addEventListener(ProgressEvent.PROGRESS, progressHandle);
+           		file.browse();
+         	}
+       		//private function uploadface():void{file.browse();}
+       		private function open(e:Event):void{ExternalInterface.call("showStatus", "正在上传中...");}
+       		private function cancel(e:Event):void{ExternalInterface.call("alert", "您取消了上传");}
+      		private function progressHandle(e:ProgressEvent):void{ExternalInterface.call("showprogress", Math.floor((e.bytesLoaded/file.size)*500));}
+       		private function selectHandle(e:Event):void
+       		{
+            	var request:URLRequest = new URLRequest();
+            	request.url = "http://www.adobe.com/2006/mxml";
+//            	request.url = "http://www.daxi8.cn/lab/flashupload.php";
+            	var file:FileReference = FileReference(e.target);
+            	file.upload(request);
+       		}
+       		private function loadServerData(e:DataEvent):void
+       		{
+            	trace('returnValue: ' + e.data);
+            	ExternalInterface.call("showStatus", "<img src =\""+e.data+"\"/>");
+      		 }
+		]]>
+	</mx:Script>
+	
+	
+</IMSWindow>

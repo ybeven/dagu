@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 放大镜 -->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="200"
+		   height="200"  
+		   horizontalScrollPolicy="off"
+		   verticalScrollPolicy="off"
+		   creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import flash.display.Bitmap;
+			import flash.display.BitmapData;
+			import flash.events.MouseEvent;
+			
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import zdims.map.IMSMap;
+			import zdims.util.CrossShape;
+			/**
+			 * 与放大镜关联的地图容器
+			 */
+			private var _map:IMSMap;
+			/**
+			 * 当前地图的位图信息
+			 */
+			private var _bitmapdata:BitmapData;
+			/**
+			 * 当前地图位图
+			 */
+			private var _bitmap:Bitmap;
+			private var _canvas:Canvas;
+			private var maskCircle:UIComponent;
+
+			[Inspectable(category="MapGisIMS")]
+			/**
+			 * 设置放大镜关联的地图容器
+			 */
+			public function set imsmap(m:IMSMap):void
+			{
+				this._map=m;
+				this.visible=false;
+			}
+            /**
+            * 获取放大镜关联的地图容器
+            */
+			public function get imsmap():IMSMap
+			{
+				if(_map==null&&this.parent is IMSMap)
+					_map=parent as IMSMap;
+				return this._map;
+			}
+            /**
+            * 控件初始化
+            */
+			public function init():void
+			{
+				this.addEventListener(FlexEvent.SHOW, onShowMagnifier);
+				this.addEventListener(FlexEvent.HIDE, onHideMagnifier);
+				this.addEventListener(MouseEvent.CLICK, onClickMagnifier);
+
+				var border:UIComponent=new UIComponent();
+				border.graphics.lineStyle(2, 0x403e3e);
+				border.graphics.beginFill(0x000000, 0.5);
+				border.graphics.drawCircle(this.width / 2, this.height / 2, this.width / 2 - 6);
+				border.graphics.endFill();
+
+				
+				var f:DropShadowFilter=new DropShadowFilter(5, 45, 0x000000);
+				var myFilters:Array=new Array();
+				myFilters.push(f);
+				border.filters=myFilters;
+				this.addChild(border);
+
+				maskCircle=new UIComponent();
+				maskCircle.graphics.lineStyle();
+				maskCircle.graphics.beginFill(0xFFFFFF);
+				maskCircle.graphics.drawCircle(this.width / 2, this.height / 2, this.width / 2 - 8);
+				maskCircle.graphics.endFill();
+//				image.mask=maskCircle;
+				addChild(maskCircle);
+				
+				var crossShape:CrossShape=new CrossShape(this,5,1);
+	    		crossShape.draw(new Point(this.width / 2,this.height / 2));
+			}
+            /**
+            * 显示放大镜
+            */
+			public function onShowMagnifier(e:FlexEvent):void
+			{
+				this._map.addEventListener(MouseEvent.MOUSE_MOVE, this.onMouseMove);
+				var tmpCanvas:Canvas=this.imsmap.cloneMap();
+				if(this._canvas!=null&&this.contains(this._canvas))
+					this.removeChild(this._canvas);
+				this._canvas=this.addChildAt(tmpCanvas,this.getChildren().length-1) as Canvas;
+				this._canvas.mask=maskCircle;
+				this._canvas.scaleX=2;
+				this._canvas.scaleY=2;
+
+				setImagePos();
+				
+			}
+			private function setImagePos():void
+			{
+				if(this._map.titleLayerLength>0)
+				{
+					var tileLayer:UIComponent=this._map.titleLayerList.getItemByIndex(0) as UIComponent;
+					this._canvas.x=(tileLayer.x  - this.x)*2- this.width / 2;
+					this._canvas.y=(tileLayer.y  - this.y)*2- this.height / 2;
+				}
+				else
+				{
+					this._canvas.x=-this.x * 2 - this.width / 2;
+					this._canvas.y=-this.y * 2 - this.height / 2;
+				}
+			}
+			/**
+			 * 隐藏放大镜
+			 */
+			public function onHideMagnifier(e:FlexEvent):void
+			{
+				this._map.removeEventListener(MouseEvent.MOUSE_MOVE, this.onMouseMove);
+			}
+            /**
+            * 鼠标移动放大镜
+            */
+			public function onMouseMove(e:MouseEvent):void
+			{
+				this.x=e.currentTarget.contentMouseX - this.width / 2;
+				this.y=e.currentTarget.contentMouseY - this.height / 2;
+				setImagePos();
+			}
+            /**
+            * 鼠标点击隐藏放大镜
+            */
+			public function onClickMagnifier(e:MouseEvent):void
+			{
+				this.visible=false;
+			}
+		]]>
+	</mx:Script>
+</mx:Canvas>

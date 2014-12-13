@@ -1,0 +1,128 @@
+﻿@charset "utf-8";
+div.tablebox{
+	clear:both;
+	margin:10px auto;
+}
+
+.listView .formView{
+	max-width:1000px;
+}
+
+.listView th {  
+	font: bold 12px 微软雅黑; 
+	color: #4f6b72;  
+	border: 1px solid #97c8ff;  
+	letter-spacing: 2px;  
+	text-transform: uppercase;  
+	text-align: center;  
+	padding: 6px 1px;  
+	background: #b2c7fe  no-repeat;  
+}  
+
+.formView th{  
+	font: bold 14px 微软雅黑;  
+	color: #4f6b72;  
+	border: 1px solid #97c8ff;  
+	letter-spacing: 2px;  
+	text-transform: uppercase;  
+	text-align: center;  
+	padding: 6px 11px; 
+	background: #b2c7fe  no-repeat;  
+}  
+
+
+.listView tr {    
+	cursor:hand;
+	background-color:#F8F8F8;
+}  
+
+.listView td {  
+	border: 1px solid #97c8ff;  
+	font-size:12px;  
+	/*width:60px;*/
+	color: #4f6b72;  
+	padding: 4px 1px;     
+	border-bottom: 1px solid #95bce2;
+}  
+
+.listView tr.over {     
+	background-color: #FFCB97;  
+} 
+
+.listView input{
+	width:auto;
+}
+
+.ListView textarea{
+	font-size:14px;
+	width:95%;
+} 
+
+.formView tr {  
+   
+}
+
+.formView td {  
+	border: 1px solid #97c8ff;  
+	font-size:14px;  
+	color: #4f6b72;
+	padding: 6px 11px;     
+	border-bottom: 1px solid #95bce2;
+	background-color: #c9d7fc;
+	text-align:center;
+} 
+
+td.tdhead{
+	font: bold 14px 微软雅黑;
+	text-align:center;
+	color: #4f6b72;  
+	border: 1px solid #97c8ff;  
+	letter-spacing: 2px;  
+	text-transform: uppercase;   
+	padding: 6px 11px;
+	background: #b2c7fe  no-repeat;
+	width:20%;
+}
+
+td.tdtitle{
+	font: bold 14px 微软雅黑;
+	text-align:center;
+	color: #4f6b72;  
+	border: 1px solid #97c8ff;  
+	letter-spacing: 2px;  
+	text-transform: uppercase;   
+	padding: 6px 11px;
+	background: #91c7fe  no-repeat;  /*#91c7fe #20B2AA*/
+}
+
+.formView input{
+	font-size:14px;
+	width:auto;
+	height:auto;
+	margin:0 0;
+	background-image:none;
+	background-color: #F8F8F8;
+}
+
+.formView_3lv input {
+	font-size:14px;
+	width:6em;
+	height:auto;
+	margin:0 0;
+	background-image:none;
+	background-color: #F8F8F8;
+}
+
+.formView textarea{
+	font-size:14px;
+	width:95%;
+}
+
+input.length_5,select.length_5{
+	font-size:14px;
+	width:auto;
+	height:auto;
+	margin:0 0;
+	background-image:none;
+	background-color:none;
+}

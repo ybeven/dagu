@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 线要素参数设置 -->
+<mx:Canvas implements="zdims.interfaces.control.IFeatureStyleEditor"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="211"
+		   height="217"
+		   fontSize="12"
+		   creationComplete="init()">
+	<mx:Label x="10"
+			  y="38"
+			  text="线型号："/>
+	<mx:Label x="10"
+			  y="67"
+			  text="辅助线型："/>
+	<mx:ComboBox id="patternID2"
+				 x="88"
+				 y="65"
+				 width="113"
+				 dataProvider="['1','2','3','4','5','6','7','8','9','10']"
+				 editable="true">
+	</mx:ComboBox>
+	<mx:Label x="11"
+			  y="99"
+			  text="外部笔宽："/>
+	<mx:TextInput id="penWidth"
+				  x="88"
+				  y="97"
+				  text="10"
+				  width="114"/>
+	<mx:Label x="10"
+			  y="129"
+			  text="线比例x系数："/>
+	<mx:TextInput id="lineScaleX"
+				  x="88"
+				  y="127"
+				  text="10"
+				  width="113"/>
+	<mx:Label x="11"
+			  y="159"
+			  text="线比例y系数："/>
+	<mx:TextInput id="lineScaleY"
+				  x="88"
+				  y="157"
+				  text="10"
+				  width="114"/>
+	<mx:Label x="10"
+			  y="10"
+			  text="线要素参数设置:"
+			  width="102"
+			  color="#5164DD"/>
+	<mx:Label x="10"
+			  y="190"
+			  text="线颜色："
+			  height="20"/>
+	<mx:ComboBox id="color"
+				 x="88"
+				 y="187"
+				 width="113"
+				 dataProvider="['1:黑色','175:红色','4:黄色','7:绿色','5:蓝色','3:紫色']"
+				 editable="true"
+				 change="setColor(this.color)">
+	</mx:ComboBox>
+	<mx:ComboBox id="patternID"
+				 x="88"
+				 y="36"
+				 width="113"
+				 dataProvider="['1','2','3','4','5','6','7','8','9','10']"
+				 editable="true">
+	</mx:ComboBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.WebGraphicsInfo;
+			import Mapgis7.WebService.BasLib.GInfoType;
+			private var gInfo:WebGraphicsInfo;
+			/**
+			 * 获取线样式信息类型
+			 */ 
+			public function getFeatureGinfoType():String
+			{
+				return GInfoType.LinInfo;
+			}
+			/**
+			 * 设置线样式信息
+			 */ 
+			public function setGraphicStyle(style:WebGraphicsInfo):void
+			{
+				this.gInfo = style;
+			}
+			/**
+			 * 窗口初始化
+			 */
+			public function init():void
+			{
+				if (gInfo == null)
+					return;
+				this.color.text = gInfo.LinInfo.Color.toString();
+				this.lineScaleX.text = gInfo.LinInfo.Xscale.toString();
+				this.lineScaleY.text = gInfo.LinInfo.Yscale.toString();
+				this.patternID.text = gInfo.LinInfo.LinStyleID.toString();
+				this.patternID2.text = gInfo.LinInfo.LinStyleID2.toString();
+				this.penWidth.text = gInfo.LinInfo.LinWidth.toString();
+			}
+			/**
+			 * 设置颜色值
+			 */
+			public function setColor(list:ComboBox):void
+			{
+				list.text = list.text.split(":")[0];
+			}
+		]]>
+	</mx:Script>
+
+</mx:Canvas>

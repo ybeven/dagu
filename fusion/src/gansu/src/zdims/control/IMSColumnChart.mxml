@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OverlayObject xmlns="zdims.map.*" enableUpdatePosition="false" creationComplete="init()" xmlns:mx="http://www.adobe.com/2006/mxml" width="150" height="100">
+	<mx:ColumnChart x="0" y="0" id="chartObj" width="100%" height="100%" fontSize="12"  showDataTips="true" showLabelVertically="true">
+			<mx:horizontalAxis>
+                <mx:CategoryAxis id="labelx" categoryField="x" displayName="x" labelFunction="labelFormat"/>
+            </mx:horizontalAxis>
+            
+            <mx:verticalAxis>
+                <mx:LinearAxis id="labely" displayName="y" baseAtZero="true" maximumLabelPrecision="10" />
+            </mx:verticalAxis>
+            <mx:series>
+                <mx:ColumnSeries id="columSeries"
+                    xField="x" 
+                    yField="y" 
+                    displayName=""
+                    labelPosition="outside"
+                />
+            </mx:series>
+	</mx:ColumnChart>
+	<mx:Script>
+		<![CDATA[
+			private var _data:Object=null;
+			public function set dataProvider(value:Object):void
+			{
+				if(this.chartObj!=null)
+					this.chartObj.dataProvider=value;
+				this._data=value;
+			}
+			public function get dataProvider():Object
+			{
+				return this._data;
+			}
+			public function init():void
+			{
+				this.chartObj.dataProvider=this._data;
+			}
+			/**
+			 * 显示文本的处理函数
+			 */
+			private function labelFormat(categoryValue:Object, previousCategoryValue:Object, axis:CategoryAxis, categoryItem:Object):String
+			{
+				categoryValue=categoryValue.toString().substring(categoryValue.toString().indexOf(":")+1);
+				if(categoryValue.toString().length > 8)
+				{
+					return categoryValue.toString().substring(0,5) + "…";
+				}
+				else
+				{
+					return categoryValue.toString();
+				}
+			}
+		]]>
+	</mx:Script>
+</OverlayObject>

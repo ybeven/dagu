@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 投影转换窗口 -->
+<IMSWindow xmlns="zdims.control.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="450"
+		   height="542"
+		   title="投影转换"
+		   layout="vertical">
+	<mx:HBox>
+		<mx:Label text="输入坐标："
+				  width="100"
+				  fontWeight="bold"/>
+		<mx:Label text="X："
+				  width="25"/>
+		<mx:TextInput id="coorx_src"
+					  width="107"
+					  text="1140000"/>
+		<mx:Label text="Y："
+				  width="25"/>
+		<mx:TextInput id="coory_src"
+					  width="120"
+					  text="330000"/>
+	</mx:HBox>
+	<mx:HBox paddingLeft="80">
+		<mx:Label text="原投影参数"
+				  color="#2835E7"
+				  width="160"
+				  textAlign="center"
+				  fontWeight="bold"/>
+		<mx:Label text="目的投影参数"
+				  color="#2835E7"
+				  width="160"
+				  textAlign="center"
+				  fontWeight="bold"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="坐标系类型："
+				  width="100"/>
+		<mx:ComboBox id="coor_src"
+					 dataProvider="{coorData}"
+					 labelField="text"
+					 selectedIndex="0"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="coor_des"
+					 dataProvider="{coorData}"
+					 labelField="text"
+					 selectedIndex="2"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="参考椭球体："
+				  width="100"/>
+		<mx:ComboBox id="ISpheroid_src"
+					 dataProvider="{sphereData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="ISpheroid_des"
+					 dataProvider="{sphereData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="角度单位："
+				  width="100"/>
+		<mx:ComboBox id="DAngUnit_src"
+					 dataProvider="{angUnitData}"
+					 selectedIndex="1"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="DAngUnit_des"
+					 dataProvider="{angUnitData}"
+					 selectedIndex="1"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="投影类型："
+				  width="100"/>
+		<mx:ComboBox id="IProjTypeId_src"
+					 dataProvider="{projTypeData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="IProjTypeId_des"
+					 dataProvider="{projTypeData}"
+					 selectedIndex="1"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="投影分带类型："
+				  width="100"/>
+		<mx:ComboBox id="BZoneType_src"
+					 dataProvider="{zoneTypeData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="BZoneType_des"
+					 dataProvider="{zoneTypeData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="投影带号："
+				  width="100"/>
+		<mx:TextInput id="IZone_src"
+					  width="150"
+					  text="20"/>
+		<mx:TextInput id="IZone_des"
+					  width="150"
+					  text="20"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="中心点经度："
+				  width="100"/>
+		<mx:TextInput id="DLon_src"
+					  width="150"
+					  text="1170000"/>
+		<mx:TextInput id="DLon_des"
+					  width="150"
+					  text="1170000"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="第一标准纬度："
+				  width="100"/>
+		<mx:TextInput id="ProjLat1_src"
+					  width="150"/>
+		<mx:TextInput id="ProjLat1_des"
+					  width="150"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="第二标准纬度："
+				  width="100"/>
+		<mx:TextInput id="ProjLat2_src"
+					  width="150"/>
+		<mx:TextInput id="ProjLat2_des"
+					  width="150"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="投影原点纬度："
+				  width="100"/>
+		<mx:TextInput id="ProjLat_src"
+					  width="150"/>
+		<mx:TextInput id="ProjLat_des"
+					  width="150"/>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="比例尺："
+				  width="100"/>
+		<mx:ComboBox id="Scale_src"
+					 dataProvider="{scaleData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="Scale_des"
+					 dataProvider="{scaleData}"
+					 selectedIndex="0"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="水平长度单位："
+				  width="100"/>
+		<mx:ComboBox id="unit_src"
+					 dataProvider="{unitData}"
+					 selectedIndex="3"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+		<mx:ComboBox id="unit_des"
+					 dataProvider="{unitData}"
+					 selectedIndex="3"
+					 labelField="text"
+					 width="150">
+		</mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox>
+		<mx:Label text="转换结果："
+				  width="100"
+				  fontWeight="bold"/>
+		<mx:Label text="X："
+				  width="25"/>
+		<mx:TextInput id="coorx_des"
+					  width="107"/>
+		<mx:Label text="Y："
+				  width="25"/>
+		<mx:TextInput id="coory_des"
+					  width="120"/>
+	</mx:HBox>
+	<mx:HBox height="49"
+			 paddingTop="20"
+			 width="437"
+			 textAlign="center"
+			 paddingLeft="140">
+		<mx:Button label="转换"
+				   click="submit()"/>
+		<mx:Label width="50"/>
+		<mx:Button label="退出"
+				   click="this.close()"/>
+	</mx:HBox>
+	<mx:Script>
+		<![CDATA[
+			import zdims.interfaces.IVector;
+			import zdims.util.SpacialAnalyse;
+			import Mapgis7.WebService.BasLib.EnumProjType;
+			import Mapgis7.WebService.BasLib.EnumType;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.Dot_2D;
+			import Mapgis7.WebService.BasLib.CProjectDots;
+			import Mapgis7.WebService.BasLib.CGetProjectDots;
+			import Mapgis7.WebService.BasLib.ProjectParam;
+			
+			[Bindable]
+			private var coorData:Object = [{text: '地理坐标系', value: 'TYPE_JWD'}, {text: '地方坐标', value: 'TYPE_LOC'}, {text: '平面直角坐标系', value: 'TYPE_PRJ'}, {text: '大地直角坐标系', value: 'TYPE_XYZ'}];
+			[Bindable]
+			private var sphereData:Object = [{text: '北京54', value: 'Beijing54'}, {text: '西安80', value: 'Xian80'}];
+			[Bindable]
+			private var angUnitData:Object = [{text: '度', value: 'UNIT_Degree'}, {text: '度分秒', value: 'UNIT_DMS'}];
+			[Bindable]
+			private var projTypeData:Object = [{text: '无投影', value: 'LonLat'}, {text: '高斯-克吕格', value: 'Gauss_Kruger'}, {text: '兰伯特投影', value: 'Lambert'}, {text: '亚尔勃斯', value: 'Albers'}, {text: '普通多圆锥', value: 'Polyconic'}, {text: '横向墨卡托', value: 'Transverse_Mecator'}];
+			[Bindable]
+			private var zoneTypeData:Object = [{text: '6度', value: '0'}, {text: '3度', value: '1'}, {text: '1.5度', value: '2'}];
+			[Bindable]
+			private var scaleData:Object = [{text: '无', value: '1'}, {text: '1:5000', value: '5000'}, {text: '1:1万', value: '10000'}, {text: '1:2.5万', value: '25000'}, {text: '1:5万', value: '50000'}, {text: '1:10万', value: '100000'}, {text: '1:25万', value: '250000'}, {text: '1:50万', value: '500000'}, {text: '1:100万', value: '1000000'}];
+			[Bindable]
+			private var unitData:Object = [{text: '毫米', value: 'UNIT_MM'}, {text: '厘米', value: 'UNIT_CM'}, {text: '分米', value: 'UNIT_DM'}, {text: '米', value: 'UNIT_Meter'}, {text: '公里', value: 'UNIT_KiloMeter'}];
+			private var _spatial:SpacialAnalyse;
+			/**
+			 * 矢量地图对象
+			 */ 
+			public var vectorObj:IVector;
+			/**
+			 * 投影转换触发函数
+			 */ 
+			public function submit():void
+			{
+				if (this.imsmap == null)
+				{
+					Alert.show("imsmap属性未赋值。", "提示");
+					return;
+				}
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				var param_src:ProjectParam = new ProjectParam();
+				var param_des:ProjectParam = new ProjectParam();
+				param_src.ProjAngleUnit = this.DAngUnit_src.selectedItem.value;
+				param_src.ProjLon = parseFloat(this.DLon_src.text);
+				param_src.ProjRate = this.Scale_src.selectedItem.value;
+				param_src.ProjType = this.coor_src.selectedItem.value;
+				if (EnumType.TYPE_JWD != param_src.ProjType)
+				{
+					param_src.ProjTypeID = this.IProjTypeId_src.selectedItem.value;
+					param_src.ProjZoneNO = parseFloat(this.IZone_src.text);
+					param_src.ProjZoneType = this.BZoneType_src.selectedItem.value;
+				}
+				param_src.ProjUnit = this.unit_src.selectedItem.value;
+				param_src.SphereID = this.ISpheroid_src.selectedItem.value;
+				if (param_src.ProjTypeID == EnumProjType.Lambert||param_src.ProjTypeID == EnumProjType.Albers)
+				{
+					param_src.ProjLat = parseFloat(this.ProjLat_src.text);
+					param_src.ProjLat1 = parseFloat(this.ProjLat1_src.text);
+					param_src.ProjLat2 = parseFloat(this.ProjLat2_src.text);
+				}
+				if (param_src.ProjTypeID == EnumProjType.Polyconic||param_src.ProjTypeID == EnumProjType.Transverse_Mecator)
+				{
+					param_src.ProjLat = parseFloat(this.ProjLat_src.text);
+				}
+				param_des.ProjAngleUnit = this.DAngUnit_des.selectedItem.value;
+				param_des.ProjLon = parseFloat(this.DLon_des.text);
+				param_des.ProjRate = this.Scale_des.selectedItem.value;
+				param_des.ProjType = this.coor_des.selectedItem.value;
+				if (EnumType.TYPE_JWD != param_des.ProjType)
+				{
+					param_des.ProjTypeID = this.IProjTypeId_des.selectedItem.value;
+					param_des.ProjZoneNO = parseFloat(this.IZone_des.text);
+					param_des.ProjZoneType = this.BZoneType_des.selectedItem.value;
+				}
+				param_des.ProjUnit = this.unit_des.selectedItem.value;
+				param_des.SphereID = this.ISpheroid_des.selectedItem.value;
+				if (param_des.ProjTypeID == EnumProjType.Lambert||param_des.ProjTypeID == EnumProjType.Albers)
+				{
+					param_des.ProjLat = parseFloat(this.ProjLat_des.text);
+					param_des.ProjLat1 = parseFloat(this.ProjLat1_des.text);
+					param_des.ProjLat2 = parseFloat(this.ProjLat2_des.text);
+				}
+				if (param_des.ProjTypeID == EnumProjType.Polyconic||param_des.ProjTypeID == EnumProjType.Transverse_Mecator)
+				{
+					param_des.ProjLat = parseFloat(this.ProjLat_des.text);
+				}
+				var obj:CProjectDots = new CProjectDots();
+				obj.SrcProjParam = param_src;
+				obj.DesProjParm = param_des;
+				var dot:Dot_2D = new Dot_2D();
+				dot.x = parseFloat(this.coorx_src.text);
+				dot.y = parseFloat(this.coory_src.text);
+				obj.InputDots = [dot];
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.projectDots(obj, onSubmit);
+			}
+			/**
+			 * 投影转换回调函数
+			 */ 
+			public function onSubmit(e:Event):void
+			{
+				this.coorx_des.text = "";
+				this.coory_des.text = "";
+				var rlt:CGetProjectDots = this._spatial.onProjectDots(e);
+				if (rlt != null)
+				{
+					Alert.show("转换成功！", "提示");
+					this.coorx_des.text = Dot_2D(rlt.DesDots[0]).x.toString();
+					this.coory_des.text = Dot_2D(rlt.DesDots[0]).y.toString();
+				}
+
+			}
+		]]>
+	</mx:Script>
+</IMSWindow>

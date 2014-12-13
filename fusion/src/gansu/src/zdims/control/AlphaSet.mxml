@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<IMSWindow xmlns="zdims.control.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="344" height="142" title="图层透明度设置">
+	<mx:ComboBox x="80" y="7" width="150" id="layerlist" click="listClick()" dataProvider="{layerData}"></mx:ComboBox>
+	<mx:HSlider x="80" y="55" snapInterval="0.1" change="setAlpha()" value="1" tickInterval="0.1" maximum="1" minimum="0" showDataTip="true"  id="alphaSlider"/>
+	<mx:Label x="10" y="10" text="图层选择："/>
+	<mx:Label x="22" y="47" text="透明度：" />
+	<mx:Button x="248" y="8" label="刷新" click="getLayer()"/>
+	<mx:Script>
+		<![CDATA[
+			import zdims.map.VectorMapDoc;
+			import zdims.map.TileLayer;
+			[Bindable]
+			public var layerData:Array=null;
+			public function listClick():void
+			{
+				if(layerData==null)
+				{
+					getLayer();
+				}
+			}
+			public function getLayer():void
+			{
+				this.layerData=new Array();
+				for(var i:int=0;i<this.imsmap.titleLayerLength;i++)
+				{
+					this.layerData[i]=TileLayer(this.imsmap.titleLayerList.getItemByIndex(i)).hdfName;
+				}
+				var j:int=i;
+				for(i=0;i<this.imsmap.vectorLayerLenth;i++)
+				{
+					this.layerData[j++]=VectorMapDoc(this.imsmap.vectorLayerList.getItemByIndex(i)).mapDocName;
+				}
+			}
+			public function setAlpha():void
+			{
+				var index:int=this.layerlist.selectedIndex;
+				try
+				{
+				if(index>=this.imsmap.titleLayerLength)
+				{
+					this.imsmap.vectorLayerList.getItemByIndex(this.layerlist.selectedIndex-this.imsmap.titleLayerLength).alpha=this.alphaSlider.value;
+				}
+				else
+				{
+					this.imsmap.titleLayerList.getItemByIndex(this.layerlist.selectedIndex).alpha=this.alphaSlider.value;
+				}
+				}
+				catch(e:Error){}
+					
+			}
+			
+		]]>
+	</mx:Script>
+</IMSWindow>

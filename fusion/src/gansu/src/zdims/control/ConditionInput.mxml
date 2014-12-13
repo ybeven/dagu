@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<!-- 条件查询窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IConditionInput"  xmlns:mx="http://www.adobe.com/2006/mxml"  layout="absolute" x="200" y="200"  width="320" height="214" title="输入查询条件" fontSize="12" borderThicknessLeft="2" borderThicknessRight="2" creationComplete="init()">
+	<mx:Button x="39" y="142" label="查询" width="74" height="22" click="submit()"/>
+	<mx:Button x="203" y="142" label="关闭" width="74" height="22" click="close()"/>
+	<mx:Button x="121" y="142" label="清空" width="74" height="22" click="clearText()"/>
+	<mx:Label x="16" y="82" text="请输入纬度："/>
+	<mx:Script>
+		<![CDATA[
+			import zdims.draw.IMSCanvas;
+			import zdims.map.VectorMapDoc;
+			import zdims.map.IMSMap;
+			import Mapgis7.WebService.BasLib.*;
+			import mx.events.FlexEvent;
+			import mx.events.DragEvent;
+			import Mapgis7.WebService.BasLib.IWebGeometry;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.ESelectionType;
+			import mx.controls.Button;
+			
+			private var _geoObj:Object;
+			private var _selectType:String = ESelectionType.Condition;
+			private var _isMouseDown:Boolean = false;
+			private var _mapDocDataViewer:MapDocDataViewer;
+			
+			[Inspectable(category="MapGisIMS")]
+			public function set mapDocDataViewer(viewer:MapDocDataViewer):void
+			{
+				this._mapDocDataViewer=viewer;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get mapDocDataViewer():MapDocDataViewer
+			{
+				return this._mapDocDataViewer;
+			}
+			
+			/**
+			 * 属性条件查询处理事件
+			 *
+			 */
+			public function selectByAttCondition():void
+			{
+				this.setQueryGeoObj(null);
+				this.setSelectType(ESelectionType.Condition);
+				this.visible=true;
+			}
+			
+			
+			/**
+			 * 设置查询条件
+			 */ 
+			public function setQueryGeoObj(value:Object):void
+			{
+				this._geoObj = value;
+			}
+			/**
+			 * 设置查询类型
+			 */ 
+			public function setSelectType(value:String):void
+			{
+				this._selectType = value;
+			}
+			
+			/**
+			 * 清除条件文本
+			 */ 
+			public function clearText():void
+			{
+				this.conditionText_x.text = "";
+				this.conditionText_y.text = "";
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public override function close():void
+			{
+				super.close();
+				//this.layerList.dataProvider = null;
+				//this.layerList.addEventListener(MouseEvent.MOUSE_OVER,getLayer);
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				//this.layerList.addEventListener(MouseEvent.MOUSE_OVER,getLayer);
+			}
+			
+			/**
+			 * 查询触发函数
+			 */ 
+			public function submit():void
+			{
+				if(this.conditionText_x.text.replace(" ","").length == 0||this.conditionText_y.text.replace(" ","").length == 0)
+				{
+					Alert.show("请输入经度纬度。","提示");
+					return;
+				}
+				if(this._selectType != ESelectionType.Condition&&this._geoObj == null)
+				{
+					Alert.show("当前查询需要空间范围对象，请选取要查询的空间范围。","提示");
+					return;
+				}
+				this.mapDocDataViewer.selectCircle(parseFloat(this.conditionText_x.text),parseFloat(this.conditionText_y.text),50);
+			}
+			
+			
+			/**
+			 * 设置查询条件
+			 */ 
+			
+			
+		]]>
+	</mx:Script>
+	<mx:Label x="16" y="32" text="请输入经度："/>
+	<mx:TextInput x="125" y="30" id="conditionText_x"/>
+	<mx:TextInput x="125" y="82" id="conditionText_y"/>
+</IMSWindow>

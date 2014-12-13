@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<IMSWindow xmlns="zdims.control.*" 
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				xmlns:ns1="zdims.com.zdimsTree.*"
+				layout="absolute"
+				y="400"
+				width="228"
+				height="536"
+				showCloseButton="true"
+				title="OGC数据目录"
+				borderThicknessRight="0"
+				borderThicknessLeft="0"
+				styleName="Title"
+				close="close()"
+				alpha="0.8"
+				creationComplete="init()"
+				fontSize="12">
+		<mx:Label x="10"
+			  y="10"
+			  text="请输入OGC服务所在服务器的IP"/>
+		<mx:ComboBox id="ipText"
+		  x="10"
+		  y="32"
+		  width="144"
+		 />
+		<mx:Button x="160"
+		  y="32"
+		  label="添加"
+		  buttonMode="true"
+		  useHandCursor="true"
+		  click="Connect(this.ipText.selectedLabel)"/>
+		<ns1:ZDTree id="zdimsTree" x="10" y="64" width="202" height="422"  enableCheckBox="false" initialize="onInitialize()"/>
+	  	
+	   <mx:Script>
+	   	<![CDATA[
+	   		import zdims.com.zdimsTree.DragNodeType;
+	   		import mx.rpc.events.ResultEvent;
+	   		import zdims.map.OGCWSLayer;
+	   		import sjd.managers.ResizeManager;
+	   		import zdims.com.zdimsTree.ZDTreeNodeObject;
+	   		import mx.collections.ArrayCollection;
+	   		import mx.controls.Alert;
+	   		/**
+			 * 用来获取图层数据的OGCWSLayer对象
+			 */
+	   		private var _ogcLayer:OGCWSLayer=new OGCWSLayer();
+	   		/**
+			 * 所有图层节点所对应的OGC图层控件数组
+			 */
+	   		private var _ogcArr:Array=new Array();
+	   		/**
+			 * 图层节点所对应的OGC图层控件索引
+			 */
+	   		private var _index:int=0;
+	   		/**
+			 * 数据目录根节点
+			 */
+	   		private var _root:ZDTreeNodeObject;
+	   		/**
+			 * 当前查询或编辑或激活图层节点
+			 */
+	   		public var lastActiveNode:Object;
+	   		/**
+			 * 当前查询或编辑或激活的图层
+			 */
+	   		public var lastActiveLayer:OGCWSLayer;
+			
+			[Bindable]
+	        [Embed("image/tree/v1.gif")]
+	        public var opened:Class;
+	        [Bindable]
+	        [Embed("image/tree/v0.gif")]
+	        public var closed:Class;
+	        [Bindable]
+	        [Embed("image/tree/v2.gif")]
+	        public var queried:Class;
+	        [Bindable]
+	        [Embed("image/tree/v3.gif")]
+			public var edited:Class;
+			[Bindable]
+	        [Embed("image/tree/v4.gif")]
+			public var actived:Class;
+			
+	   		/**
+			 * 窗口初始化
+			 */
+			public override function init():void
+			{
+				super.init();
+				ResizeManager.enableResize(this, 100);
+			}
+			/**
+			 * 根据IP地址连接OGC服务，调用GetCapabilities服务
+			 * @param ipStr IP地址值
+			 *
+			 */
+			private function Connect(ipStr:String):void
+			{
+				_ogcLayer.wmsServerAddress="http://"+ipStr+"/MapgisOGCWebService/WMS.asmx?WSDL";
+				_ogcLayer.wfsServerAddress="http://"+ipStr+"/MapgisOGCWebService/WFS.asmx?WSDL";
+				this._ogcLayer.getCapabilities(this.getLayerNames);
+			}
+			/**
+			 * 获取所有图层名称
+			 * @param e 
+			 *
+			 */
+			private function getLayerNames(e:ResultEvent):void
+			{
+				var layerArr:Array=new Array();
+				layerArr=this._ogcLayer.onGetCapabilities(e);
+				if(layerArr==null||layerArr.length==0)
+				{
+					Alert.show("未获取到该服务的图层数据！");
+					return;	
+				}
+				addCatalog(layerArr);
+			}
+			/**
+			 * 添加数据
+			 * @param layerArr 图层名称数组 
+			 *
+			 */
+			private function addCatalog(layerArr:Array):void
+			{
+				zdimsTree.enableDragNode=DragNodeType.UnableDragNode;
+				zdimsTree.defaultFileIcon=closed;
+				
+				var subroot:ZDTreeNodeObject=new ZDTreeNodeObject(this.ipText.selectedLabel);
+				subroot.openedIconSrc="image/tree/data.gif";
+				if(!_root.hasOwnProperty("children"))
+					_root.childNodeArr=new ArrayCollection();
+				_root.childNodeArr.addItem(subroot);
+				subroot.childNodeArr=new ArrayCollection();
+				for(var i:int=0;i<layerArr[0].length;i++)
+				{
+					
+					var node:ZDTreeNodeObject=new ZDTreeNodeObject(layerArr[0][i]);
+					node.iconClass=closed;
+					node.customTarget=new Object();
+					node.customTarget.index=_index;//动态扩展的属性，节点的索引
+					node.customTarget.GeomType=layerArr[1][i];
+					_index++;
+					node.customTarget.ip=this.ipText.selectedLabel;//动态扩展的属性，父节点的IP值
+					node.customTarget.state=0;
+					subroot.childNodeArr.addItem(node);
+				}	
+				zdimsTree.loadObjectSource(_root);
+			}
+			/**
+			 * 初始化数据目录右键及数据目录根节点
+			 */
+			private function onInitialize():void
+			{				
+				var menu:ContextMenu=new ContextMenu();
+				menu.hideBuiltInItems();
+				var item:ContextMenuItem=new ContextMenuItem("可见",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,Display);
+				item=new ContextMenuItem("不可见",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,unDisplay);
+				item=new ContextMenuItem("可查询",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,Query);
+				item=new ContextMenuItem("编辑",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,Edit);
+				item=new ContextMenuItem("激活",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,Active);
+				item=new ContextMenuItem("删除节点",false);
+				menu.customItems.push(item);
+				item.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,delNode);
+				zdimsTree.contextMenu=menu;
+				
+				_root=new ZDTreeNodeObject("图层数据");
+				_root.openedIconSrc="image/tree/data.gif";
+				zdimsTree.loadObjectSource(_root);
+				_root.childNodeArr=new ArrayCollection();
+				
+				var ipArr:Array=new Array();
+				ipArr[1]="192.168.10.2";
+				ipArr[2]="192.168.83.198";
+				this.ipText.dataProvider=ipArr;
+			}
+			/**
+			 * 删除节点
+			 * @param e 
+			 *
+			 */
+			private function delNode(e:ContextMenuEvent):void
+			{
+				
+				var node:Object=zdimsTree.selectedItem;
+				if(node==_root)
+				{
+					Alert.show("无法删除根节点！");
+					return;
+				}
+				else
+					if(!isChildClosed(node))
+					{
+						Alert.show("请确保该节点或其子节点已关闭！");	
+						return;
+					}					
+				zdimsTree.removeNode(node);
+			}
+			/**
+			 * 判断一节点或其子节点是否都已关闭
+			 * @param node 
+			 *
+			 */
+			private function isChildClosed(node:Object):Boolean
+			{
+				if(node.childNodeArr!=null&&node.childNodeArr.length>0)
+				{
+					for(var i:int=0;i<node.childNodeArr.length;i++)
+					{
+						var childNode:ZDTreeNodeObject;
+						childNode=node.childNodeArr.getItemAt(i);
+						if(childNode.iconClass!=closed)
+							return false;
+					}
+				}
+				else 
+					if(node.iconClass!=closed)
+					 	return false;
+					 	
+				return true;
+			}
+			/**
+			 * 设置图层可见处理事件
+			 * @param e 
+			 *
+			 */
+			private function Display(e:ContextMenuEvent):void
+			{
+				
+				var node:Object=zdimsTree.selectedItem;
+				if(node.iconClass==opened)
+					return;
+				if(lastActiveNode!=null&&lastActiveNode==node)
+				{
+					this.lastActiveLayer=null;
+					this.lastActiveNode=null;
+				}
+				node.iconClass=opened;
+				node.customTarget.state=1;
+				this._ogcArr[node.customTarget.index]=new OGCWSLayer();
+				this._ogcArr[node.customTarget.index].wmsServerAddress="http://"+node.customTarget.ip+"/MapgisOGCWebService/WMS.asmx?WSDL";
+				this._ogcArr[node.customTarget.index].wfsServerAddress="http://"+node.customTarget.ip+"/MapgisOGCWebService/WFS.asmx?WSDL";
+				this._ogcArr[node.customTarget.index].layerName=node.label;
+				this._ogcArr[node.customTarget.index].GeomType=node.customTarget.GeomType;
+				this.imsmap.addChild(this._ogcArr[node.customTarget.index]);               
+			}
+			/**
+			 * 设置图层不可见处理事件
+			 * @param e 
+			 *
+			 */
+			private function unDisplay(e:ContextMenuEvent):void
+			{
+				var node:Object=zdimsTree.selectedItem;
+				if(node.iconClass==closed)
+					return;
+				if(lastActiveNode!=null&&lastActiveNode==node)
+				{
+					this.lastActiveLayer=null;
+					this.lastActiveNode=null;
+				}
+				node.iconClass=closed;
+				node.customTarget.state=0;
+				this.imsmap.removeChild(this._ogcArr[node.customTarget.index]);
+			}
+			/**
+			 * 设置图层可查询处理事件
+			 * @param e 
+			 *
+			 */
+			private function Query(e:ContextMenuEvent):void
+			{
+				if(lastActiveNode!=null&&lastActiveNode.iconClass!=closed)
+				{
+					lastActiveNode.iconClass=opened;
+				}
+				var node:Object=zdimsTree.selectedItem;
+				if(node.iconClass==closed)
+					Display(e);
+				lastActiveNode=node;
+				node.iconClass=queried;
+				node.customTarget.state=2;
+				this.lastActiveLayer=this._ogcArr[node.customTarget.index];
+				
+			}
+			/**
+			 * 设置图层可编辑处理事件
+			 * @param e 
+			 *
+			 */
+			private function Edit(e:ContextMenuEvent):void
+			{
+				if(lastActiveNode!=null&&lastActiveNode.iconClass!=closed)
+				{
+					lastActiveNode.iconClass=opened;
+				}
+				var node:Object=zdimsTree.selectedItem;
+				if(node.iconClass==closed)
+					Display(e);
+				lastActiveNode=node;
+				node.iconClass=edited;
+				node.customTarget.state=3;
+				this.lastActiveLayer=this._ogcArr[node.customTarget.index];
+			}
+			/**
+			 * 激活图层处理事件
+			 * @param e 
+			 *
+			 */
+			private function Active(e:ContextMenuEvent):void
+			{
+				if(lastActiveNode!=null&&lastActiveNode.iconClass!=closed)
+				{
+					lastActiveNode.iconClass=opened;
+				}
+				var node:Object=zdimsTree.selectedItem;
+				if(node.iconClass==closed)
+					Display(e);
+				lastActiveNode=node;
+				node.iconClass=actived;
+				node.customTarget.state=4;
+				this.lastActiveLayer=this._ogcArr[node.customTarget.index];
+			}
+	   	]]>
+	   </mx:Script>
+</IMSWindow>

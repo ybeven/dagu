@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 目录树界面 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.ICatalog"
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				layout="absolute"
+				width="220"
+				height="368"
+				title="数据目录"
+				fontSize="12"
+				borderThicknessLeft="2"
+				borderThicknessRight="2"
+				close="close()"
+				showCloseButton="true"
+				creationComplete="init()"
+				xmlns:ns1="zdims.*"
+				xmlns:control="zdims.control.*">
+	<control:IMSTree id="imstree"
+					 height="100%"
+					 width="99%"/>
+	<mx:Script>
+		<![CDATA[
+			import mx.containers.HBox;
+			import mx.containers.HDividedBox;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			
+			import sjd.managers.ResizeManager;
+			
+			import zdims.interfaces.IMap;
+			import zdims.map.IMSMap;
+			import zdims.map.TileLayer;
+			import zdims.map.VectorLayer;
+			import zdims.map.VectorMapDoc;
+			
+			private var timer:Timer=new Timer(1000);
+
+
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				this.imstree.imsmap=this.imsmap;
+				this.titleBar.doubleClickEnabled=true;
+				timer.addEventListener(TimerEvent.TIMER,onTimer);
+				ResizeManager.enableResize(this,200);
+			}
+			[Inspectable(category="MapGisIMS")]
+			public override function set imsmap(m:IMSMap):void
+			{
+				if(this.imstree!=null)
+					this.imstree.imsmap = m;
+				if(timer.running)
+					timer.stop();
+				timer.start();
+			}
+			[Inspectable(category="MapGisIMS")]
+			public override function get imsmap():IMSMap
+			{
+				if(this.imstree==null)
+				{
+					if(this.parent is IMSMap)
+						return this.parent as IMSMap;
+				}
+				else if(this.imstree.imsmap==null)
+				{
+					if(this.parent is IMSMap)
+						this.imstree.imsmap=this.parent as IMSMap;
+				}	
+				return this.imstree.imsmap;
+			}
+			public function onTimer(e:TimerEvent):void
+			{
+				if(this.imsmap!=null&&this.imsmap.vectorLayerComplete||this.imsmap.vectorLayerLenth==0)
+				{
+					this.imstree.setNodesByMap(this.imsmap);
+					if(this.imsmap.vectorLayerLenth>0)
+					{
+						var vmap:IMap=this.imsmap.vectorLayerList.getItemByIndex(0) as IMap;
+						this.imsmap.activeMapDoc=vmap as VectorMapDoc;
+						this.imsmap.activeLayerObj=vmap as VectorLayer;
+					}
+					e.target.stop();
+				}
+				
+			}
+			public override function activeControl(e:Event):void
+			{}
+			/**
+			 * 添加瓦片图层
+			 */
+			public function addTitleBarEvent(e:String, call:Function):void
+			{
+				this.titleBar.addEventListener(e, call);
+			}
+			/**
+			 * 添加瓦片结点
+			 */
+			public function addTileLayerNode(tileLayer:TileLayer, index:int=0):void
+			{
+				this.imstree.addTileLayerNode(tileLayer, index);
+			}
+			/**
+			 * 添加文档结点
+			 */
+			public function addMapDocNode(mapdoc:VectorMapDoc, index:int=0):void
+			{
+				this.imstree.addMapDocNode(mapdoc, index);
+			}
+			/**
+			 * 根据某个地图文档节点信息
+			 * @param oldMapDocName 要更新地图文档节点的地图文档名称
+			 * @param newMapdoc 新的地图文档对象
+			 * 
+			 */		
+			public function updateMapDocNode(oldMapDocName:String,newMapdoc:VectorMapDoc):void
+			{
+				this.imstree.updateMapDocNode(oldMapDocName, newMapdoc);
+			}
+			/**
+			 * 添加矢量图层结点
+			 */
+			public function addVectorLayerNode(layer:VectorLayer, index:int=0):void
+			{
+				this.imstree.addVectorLayerNode(layer, index);
+			}
+			/**
+			 * 设置地图文档结点
+			 */
+			public function setNodesByMap(map:IMSMap):void
+			{
+				this.imstree.setNodesByMap(map);
+			}
+		]]>
+	</mx:Script>
+</IMSWindow>

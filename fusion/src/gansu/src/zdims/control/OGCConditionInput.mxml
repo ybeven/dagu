@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<!-- 条件查询窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IConditionInput"  xmlns:mx="http://www.adobe.com/2006/mxml"  layout="absolute" x="200" y="200"  width="320" height="354" title="输入查询条件" fontSize="12" borderThicknessLeft="2" borderThicknessRight="2" creationComplete="init()">
+	<mx:Button x="10" y="81" label="+" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="81" label="-" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="81" label="*" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="81" label="/" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="103" label="&gt;=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="103" label="&lt;=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="103" label="&gt;" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="103" label="&lt;" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="125" label="=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="125" label="!=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="125" label="and" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="125" label="or" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="147" label="not" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="147" label="like" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="147" label="is null" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="147" label="%" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:TextArea id="conditionText" x="10" y="209" width="296" height="48"/>
+	<mx:Button x="39" y="278" label="查询" width="74" height="22" click="submit()"/>
+	<mx:Button x="203" y="278" label="关闭" width="74" height="22" click="close()"/>
+	<mx:ComboBox x="97" y="50" width="209" id="fieldList" change="onSelectField()"></mx:ComboBox>
+	<mx:Label x="10" y="53" text="选择属性字段："/>
+	<mx:Button x="121" y="278" label="清空" width="74" height="22" click="clearText()"/>
+	<mx:Label x="10" y="185" text="请输入查询条件："/>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.ESelectionType;
+			import zdims.map.OGCWSLayer;
+			import Mapgis7.WebService.BasLib.*;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			private var _geoObj:Object;
+			private var _selectType:String = ESelectionType.Condition;
+			private var _ogcLayer:OGCWSLayer;
+			private var _ogcCatalog:OGCCatalog;
+			private var _ogcDataViewer:OGCDataViewer;
+			[Inspectable(category="MapGisIMS")]
+			public function set ogclayer(m:OGCWSLayer):void
+			{
+				this._ogcLayer = m;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get ogclayer():OGCWSLayer
+			{
+				return this._ogcLayer;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function set ogcCatalog(catalogCtrl:OGCCatalog):void
+			{
+				this._ogcCatalog=catalogCtrl;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get ogcCatalog():OGCCatalog
+			{
+				return this._ogcCatalog;
+			}
+			
+			[Inspectable(category="MapGisIMS")]
+			public function set ogcDataViewer(viewer:OGCDataViewer):void
+			{
+				this._ogcDataViewer=viewer;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get ogcDataViewer():OGCDataViewer
+			{
+				return this._ogcDataViewer;
+			}
+			/**
+			 * 设置查询条件
+			 */ 
+			public function setQueryGeoObj(value:Object):void
+			{
+				this._geoObj = value;
+			}
+			/**
+			 * 设置查询类型
+			 */ 
+			public function setSelectType(value:String):void
+			{
+				this._selectType = value;
+				
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				this.layerList.addEventListener(MouseEvent.MOUSE_OVER,getLayer);
+				
+			}
+			public function getLayer(e:Event):void
+			{
+				this.ogclayer=null;
+				if(this.ogcCatalog!=null&&this.ogcCatalog.lastActiveLayer!=null)
+					this.ogclayer=this.ogcCatalog.lastActiveLayer;
+				if(this.ogclayer==null)
+				{
+					Alert.show("属性条件查询控件没有关联的OGC图层！");
+					return;
+				}
+				var layerName:Array=new Array();
+				layerName=this.ogclayer.layerName.split(",");
+				this.layerList.dataProvider=layerName;
+				this.layerList.selectedItem=null;
+				this.layerList.removeEventListener(MouseEvent.MOUSE_OVER,getLayer);
+				changeLayer();
+				
+			}
+			/**
+			 * 改变图层触发函数，获取图层属性结构
+			 */ 
+			public function changeLayer():void
+			{
+				this.ogclayer=null;
+				if(this.ogcCatalog!=null&&this.ogcCatalog.lastActiveLayer!=null)
+					this.ogclayer=this.ogcCatalog.lastActiveLayer;
+				if(this.ogclayer==null)
+				{
+					Alert.show("属性条件查询控件没有关联的OGC图层！");
+					return;
+				}
+				var index:int = this.layerList.selectedIndex;
+				if(index < 0) return;
+				this.ogclayer.getFeatureAttStruct(this.layerList.selectedLabel,this.getAttStructCallBack);
+			}
+			/**
+			 * 获取当前图层属性结构结果处理函数 
+			 * @param e
+			 * 
+			 */	
+			public function getAttStructCallBack(e:ResultEvent):void
+			{
+				var attStru:CAttStruct=this._ogcLayer.onGetFeatureAttStruct(e);
+				this.fieldList.dataProvider=attStru.FldName;
+				this.fieldList.selectedItem=null;
+			}
+			/**
+			 * 属性条件查询处理事件
+			 *
+			 */
+			 
+			public function selectByAttCondition():void
+			{
+				this.setQueryGeoObj(null);
+				this.setSelectType(ESelectionType.Condition);
+				this.visible=true;
+			}
+			/**
+			 * 设置条件文本
+			 */ 
+			public function onBtnClick(e:Event):void
+			{
+				var btn:Button = Button(e.target);
+				this.conditionText.text += " " + btn.label;
+				this.conditionText.setFocus();
+			}
+			/**
+			 * 清除条件文本
+			 */ 
+			public function clearText():void
+			{
+				this.conditionText.text = "";
+			}
+			/**
+			 * 设置查询条件
+			 */ 
+			public function onSelectField():void
+			{
+				this.conditionText.text += this.fieldList.selectedLabel;
+			}
+			/**
+			 * 查询触发函数
+			 */ 
+			public function submit():void
+			{
+				if(this.ogclayer==null)
+		        {
+		        	Alert.show("查询结果控件没有关联的OGC图层！");
+		        	return;
+		        }
+				if(this.conditionText.text.replace(" ","").length == 0)
+				{
+					Alert.show("请输入查询条件。","提示");
+					return;
+				}
+				if(this._selectType != ESelectionType.Condition&&this._geoObj == null)
+				{
+					Alert.show("当前查询需要空间范围对象，请选取要查询的空间范围。","提示");
+					return;
+				}
+				var callback:Function=this.selectCallback;
+				
+				this.ogclayer.selectByCondition(this.layerList.selectedLabel,this.conditionText.text,callback);
+			}
+			/**
+			 * 查询结果处理事件 
+			 * @param e
+			 * 
+			 */		
+			public function selectCallback(e:ResultEvent):void
+			{
+				if(this.ogcDataViewer == null) 
+				{
+					Alert.show("IMSMAP控件没有关联的数据显示控件！");
+					return;
+				}
+				this.ogcDataViewer.showResult(this.ogclayer.onSelectByCondition(e) as CGetAttSelectSet);
+			}
+		]]>
+	</mx:Script>
+	<mx:ComboBox x="97" y="18" width="209" id="layerList" change="changeLayer()"></mx:ComboBox>
+	<mx:Label x="10" y="21" text="选择图层："/>
+</IMSWindow>

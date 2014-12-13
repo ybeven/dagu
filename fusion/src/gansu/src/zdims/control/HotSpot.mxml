@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OverlayObject xmlns="zdims.map.*" creationComplete="init()" visible="false" show="onShow()" fontSize="12" xmlns:mx="http://www.adobe.com/2006/mxml" >
+	<mx:Label id="hotLabel" x="10"  text=""/>
+	<mx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			private var hotArea:IMSRoad=new IMSRoad();
+			public var fillColor:int=0x0BC821;
+			public var hotLabelText:String="";
+			
+			public function set hotAreaDots(value:Array):void
+			{
+				hotArea.setDots(value);
+			}
+			public function init():void
+			{
+				hotArea.enableFill=true;
+				hotArea.fillColor=0xffffff;
+				hotArea.borderSize=2;
+				if(this.imsmap!=null)
+				{
+					this.hotArea.contextMenu=this.imsmap.contextMenu;
+					this.imsmap.addChild(hotArea);
+					if(this.imsmap.contains(this))
+						this.imsmap.setChildIndex(this,this.imsmap.getChildren().length-1);
+					hotArea.addEventListener(MouseEvent.MOUSE_DOWN,this.imsmap.onMouseDown);
+					hotArea.addEventListener(MouseEvent.MOUSE_MOVE,this.imsmap.onMouseMove);
+					hotArea.addEventListener(MouseEvent.MOUSE_UP,this.imsmap.onMouseUp);
+					hotArea.addEventListener(MouseEvent.DOUBLE_CLICK,this.imsmap.onDoubleClick);
+					hotArea.addEventListener(MouseEvent.MOUSE_WHEEL,this.imsmap.onMouseWheel);
+				}
+				hotArea.addEventListener(MouseEvent.MOUSE_OVER,onMouseOver);
+				hotArea.addEventListener(MouseEvent.MOUSE_MOVE,onMouseOver);
+				hotArea.addEventListener(MouseEvent.MOUSE_OUT,onMouseOut);
+				this.hotArea.alpha=0;
+				this.hotLabel.text=this.hotLabelText;
+				
+			}
+			public function onMouseOver(e:Event):void
+			{
+				this.x=this.hotArea.contentMouseX+20;
+				this.y=this.hotArea.contentMouseY;
+				this.visible=true;
+				this.hotArea.alpha=1;
+			}
+			public function onMouseOut(e:Event):void
+			{
+				this.visible=false;
+				this.hotArea.alpha=0;
+			}
+			public function onShow():void
+			{
+				this.graphics.clear();
+				this.graphics.beginFill(fillColor,0.5);
+				this.graphics.moveTo(0,this.height/2);
+				this.graphics.lineTo(10,0);
+				this.graphics.lineTo(width,0);
+				this.graphics.lineTo(width,height);
+				this.graphics.lineTo(10,height);
+				this.graphics.moveTo(0,this.height/2);
+				this.graphics.endFill();
+			}
+		]]>
+	</mx:Script>
+</OverlayObject>

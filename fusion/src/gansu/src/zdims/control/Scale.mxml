@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="150" height="64"  creationComplete="ini()">
+	<mx:Text  id="scaleNum" x="9" y="4" text="1000km" fontSize="15" fontStyle="normal" fontWeight="bold" color="#030303"/>
+	<mx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import zdims.map.IMSMap;
+			import zdims.event.IMSMapZoomEvent;
+			import zdims.event.IMSMapEvent;
+			/**
+			 * 与比例尺关联的地图容器
+			 */
+			private var _map:IMSMap;
+			/**
+			 * 比例尺线段
+			 */
+			private var scaleLine:UIComponent;
+
+			[Inspectable (category = "MapGisIMS")]
+			/**
+			 * 是否是地理坐标系
+			 */
+			public var isGeoCoordinate:Boolean=true;
+			[Inspectable (category = "MapGisIMS")]
+			/**
+			 * 单位坐标代表的实际长度
+			 */
+			public var unitLength:Number=1;
+			
+			[Inspectable (category = "MapGisIMS")]
+			/**
+			 * 关联的地图容器
+			 */
+			public function set imsmap(m:IMSMap):void
+			{
+				this._map = m;
+			}
+
+			public function get imsmap():IMSMap
+			{
+				return this._map;
+			}
+			/**
+			 * 初始化函数
+			 */
+			public function ini():void
+			{
+				scaleLine = new UIComponent();
+				scaleLine.graphics.lineStyle(2,0x000000);
+				scaleLine.graphics.moveTo(5,this.scaleNum.y+10);
+				scaleLine.graphics.lineTo(5,this.scaleNum.y+20);
+				if(this.width<100)
+				{
+					scaleLine.graphics.lineTo(this.width-5,this.scaleNum.y+20);
+					scaleLine.graphics.lineTo(this.width-5,this.scaleNum.y+10);
+				}
+				else 
+				{
+					scaleLine.graphics.lineTo(95,this.scaleNum.y+20);
+					scaleLine.graphics.lineTo(95,this.scaleNum.y+10);
+				}
+
+				this.addChild(scaleLine);
+
+				this._map.addEventListener(IMSMapZoomEvent.ZOOM_STOP,onMapZoom);
+				this._map.addEventListener(IMSMapEvent.MAP_READY,onMapReady);
+				this._map.addEventListener(IMSMapEvent.MAP_CHANGE,onMapZoom);
+			}
+			/**
+			 * 地图初始化事件处理函数
+			 */
+			public function onMapReady(e:IMSMapEvent):void
+			{
+				this.calculateScale();
+			}
+			/**
+			 * 地图缩放事件处理函数
+			 */
+			public function onMapZoom(e:Event):void
+			{
+				this.calculateScale();
+			}
+			/**
+			 * 计算比例尺系数
+			 */
+			public function calculateScale():void
+			{
+				
+                var distance:Number = 0;
+                if(isGeoCoordinate)
+                {
+                	if(this.width<100)
+					{
+						var startPnt:Point = this._map.screenToLogic(this.x+5,0);
+						var endPnt:Point = this._map.screenToLogic(this.x+this.width-5,0);
+					}
+					else
+					{
+						startPnt = this._map.screenToLogic(this.x+5,0);
+						endPnt = this._map.screenToLogic(this.x+95,0);
+					}
+                	distance = 111309.5*Math.cos(Math.PI*startPnt.y/180)*Math.abs(startPnt.x-endPnt.x);
+                }
+                else
+                {
+                	var len:int=this.width>100?90:this.width-10;
+                	distance = this.imsmap.getBuffer(len)*this.unitLength;
+                }
+				if(distance>1000)
+				{this.scaleNum.text = (distance/1000).toFixed(1)+"km";}
+				else
+				{this.scaleNum.text = distance.toFixed(1)+"m";}
+			}
+		]]>
+	</mx:Script>
+</mx:Canvas>

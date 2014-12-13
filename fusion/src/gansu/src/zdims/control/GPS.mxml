@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- gps定位 -->
+<IMSWindow xmlns="zdims.control.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="358" height="348" creationComplete="init()" layout="vertical" title="设备跟踪">
+	<mx:HBox width="327">
+		<mx:Label text="跟踪设备编号："/>
+		<mx:ComboBox id="device" dataProvider="{['13147177455','13147177456','13147177457','13147177458']}" change="onDeviceChange()"></mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox width="341" verticalAlign="bottom">
+		<mx:CheckBox id="enableGPS" label="跟踪GPS位置" change="onClick(event)" width="123"/>
+		<mx:CheckBox id="showAtCenter" label="始终居中显示"/>
+		<mx:CheckBox id="enablePathDraw" label="绘制轨迹"/>
+	</mx:HBox>
+	<mx:HBox width="345" verticalAlign="bottom">
+		<mx:Label text="刷新时间间隔:"/>
+		<mx:ComboBox id="delay" dataProvider="{[1,2,3,4,5]}" selectedIndex="4" editable="true" change="changeDelay()"></mx:ComboBox>
+		<mx:Label text="单位（秒）"/>
+		<mx:Button label="居中" click="showPos()"/>
+	</mx:HBox>
+	<mx:Canvas width="343" height="213" borderColor="#ffff10" borderThickness="2">
+		<mx:Label x="10" y="33" text="开始日期："/>
+		<mx:DateField x="73" y="31" id="startdate" editable="true" width="149.5" formatString="YYYY-MM-DD" text="2009-01-01"/>
+		<mx:Label x="10" y="66" text="开始时间："/>
+		<mx:ComboBox x="73" y="63" width="50" id="starth"></mx:ComboBox>
+		<mx:ComboBox x="146.5" y="62" width="50" id="startm"></mx:ComboBox>
+		<mx:ComboBox x="223" y="62" width="50" id="starts"></mx:ComboBox>
+		<mx:Label x="125" y="65" text="时"/>
+		<mx:Label x="200.5" y="65" text="分"/>
+		<mx:Label x="279" y="65" text="秒"/>
+		<mx:Label x="10" y="102" text="结束日期："/>
+		<mx:DateField x="73" y="100" id="enddate"  editable="true" width="149.5"  formatString="YYYY-MM-DD" text="2010-11-26"/>
+		<mx:Label x="10" y="135" text="结束时间："/>
+		<mx:ComboBox x="73" y="132" width="50" id="endh"></mx:ComboBox>
+		<mx:ComboBox x="146.5" y="131" width="50" id="endm"></mx:ComboBox>
+		<mx:ComboBox x="223" y="131" width="50" id="ends"></mx:ComboBox>
+		<mx:Label x="125" y="134" text="时"/>
+		<mx:Label x="200.5" y="134" text="分"/>
+		<mx:Label x="279" y="134" text="秒"/>
+		<mx:Label x="0" y="5" text="查看历史轨迹" fontWeight="bold" fontSize="13" color="#0000ff"/>
+		<mx:Button x="78" y="171" label="查看" click="getHistoryPath()"/>
+		<mx:Button x="173" y="171" label="清除" click="clearHistoryPath()"/>
+	</mx:Canvas>
+	<mx:Panel id="detail" width="343" visible="true" height="167" layout="vertical" title="详细定位信息">
+	</mx:Panel>
+	
+	<mx:Script>
+		<![CDATA[
+			import zdims.control.Marker;
+			import zdims.control.IMSRoad;
+			import mx.controls.Text;
+			import mx.containers.HBox;
+			import mx.controls.Alert;
+			import mx.controls.CheckBox;
+			
+			public var timer:Timer;
+			public var PLat:Number = 0;
+			public var PLon:Number = 0;
+			public var posMarker:DisplayObject;
+			public var path:IMSRoad;
+			public var historyPath:IMSRoad;
+			/**
+			 * 控件初始化函数
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				timer = new Timer(1);
+				timer.repeatCount = int.MAX_VALUE;
+				timer.addEventListener(TimerEvent.TIMER,onTimer);
+				var h:Array = new Array();
+				var m:Array = new Array();
+				for(var i:int = 0;i <= 24;i++)
+				{
+					h[i]=i;
+				}
+				for(i = 0;i <= 60;i++)
+				{
+					m[i]=i;
+				}
+				this.starth.dataProvider = h;
+				this.startm.dataProvider = m;
+				this.starts.dataProvider = m;
+				this.endh.dataProvider   = h;
+				this.endm.dataProvider   = m;
+				this.ends.dataProvider   = m;
+			}
+			/**
+			 * 居中显示触发函数
+			 */ 
+			public function showPos():void
+			{
+				if(this.PLat != 0 && this.PLon != 0)
+				this.imsmap.panTo(this.PLon,this.PLat);
+			}
+			/**
+			 * 改变数据触发函数
+			 */ 
+			public function onDeviceChange():void
+			{
+				if(this.posMarker != null)
+				{
+					this.imsmap.removeChild(this.posMarker);
+				}
+				if(this.path != null)
+				{
+					this.path.clear();
+				}
+				this.path = null;
+				this.posMarker = null;
+			}
+			/**
+			 * 刷新时间间隔触发函数
+			 */ 
+			public function changeDelay():void
+			{
+				timer.delay = parseInt(this.delay.text) * 1000;
+			}
+			/**
+			 * 跟踪GPS位置触发函数
+			 */ 
+			public function onClick(e:Event):void
+			{
+				if(CheckBox(e.target).selected)
+				{
+					timer.delay = parseInt(this.delay.text) * 1000;
+					timer.start();
+				}
+				else
+				{
+					if(timer.running)timer.stop();
+				}
+			}
+			/**
+			 * 计时器回调函数
+			 */ 
+			public function onTimer(e:Event):void
+			{
+				var url:String = "http://localhost/GPSService/gpsHandler.ashx?method=getLastPos&gpsType=GPRMC&PDevice="+this.device.text;
+				url += "&rnd=" + Math.random();
+				var urlRequest:URLRequest = new URLRequest(url);
+				urlRequest.method = URLRequestMethod.GET;
+				urlRequest.contentType = "text/xml;charset=utf-8";
+				
+				var loader:URLLoader = new URLLoader();
+				
+				try
+				{
+					loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR,onSecurityError);
+					loader.addEventListener(Event.COMPLETE,onGetPosInfo);
+					loader.load(urlRequest);
+				}
+				catch(err:IOError)
+				{
+					Alert.show(err.message,"错误提示");
+				}
+			}
+			/**
+			 * 查看历史轨迹触发函数
+			 */ 
+			public function getHistoryPath():void
+			{
+				var startTime:String = this.startdate.text+" "+this.starth.text+":"+this.startm.text+":"+this.starts.text;
+				var endTime:String = this.enddate.text+" "+this.endh.text+":"+this.endm.text+":"+this.ends.text;;
+				var url:String = "http://localhost/GPSService/gpsHandler.ashx?method=getHistoryPath&gpsType=GPRMC&beginTime="+startTime+"&endTime="+endTime+"&PDevice="+this.device.text;
+				url += "&rnd=" + Math.random();
+				var urlRequest:URLRequest = new URLRequest(url);
+				urlRequest.method = URLRequestMethod.GET;
+				urlRequest.contentType = "text/xml;charset=utf-8";
+				try
+				{
+					var loader:URLLoader = new URLLoader();
+					loader.addEventListener(IOErrorEvent.IO_ERROR,onIOError);
+					loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR,onSecurityError);
+					loader.addEventListener(Event.COMPLETE,onGetHistoryPath);
+					loader.load(urlRequest);
+				}
+				catch(err:IOError)
+				{
+					Alert.show(err.message,"错误提示");
+				}
+			}
+			/**
+			 * 清除历史轨迹触发函数
+			 */ 
+			public function clearHistoryPath():void
+			{
+				if(this.historyPath != null)
+				{
+					this.historyPath.clear();
+				}
+				this.historyPath = null;
+			} 
+			/**
+			 * 获取历史轨迹回调函数
+			 */ 
+			public function onGetHistoryPath(e:Event):void
+			{
+				if(this.historyPath == null)
+				{
+					this.historyPath = new IMSRoad();
+					this.historyPath.imsmap=this.imsmap;
+				}
+				else
+				{
+					this.historyPath._roadCoorArr = "";
+					this.historyPath.drawRoad();
+				}
+				var gpsinfo:String = URLLoader(e.target).data;
+				if(gpsinfo==null||gpsinfo=="")
+				{
+					return;
+				}
+				var infoArray:Array = gpsinfo.split("*");
+				if(infoArray.length < 2)
+				{
+					this.imsmap.setErrorText("未查到历史路径");
+					return;
+				}
+				var colName:Array = infoArray[0].toString().split(",");
+				var rows:Array = infoArray[1].toString().split(";");
+				var rowCount:int = rows.length;
+				for(var r:int = 0;r < rowCount;r++)
+				{
+					var row:Array = rows[r].toString().split(",");
+					for(var i:int = 0;i < colName.length;i++)
+					{
+						if(colName[i] == "PLon")
+						{
+							this.historyPath._roadCoorArr += (parseFloat(row[i])/100).toString()+",";
+						}
+						if(colName[i] == "PLat")
+						{
+							this.historyPath._roadCoorArr += (parseFloat(row[i])/100).toString()+",";
+						}
+					}
+				}
+				this.historyPath._roadCoorArr = this.historyPath._roadCoorArr.substring(0,this.historyPath._roadCoorArr.length-2);
+				this.historyPath.drawRoad();
+			}
+			/**
+			 * 获取定位点信息回调函数
+			 */ 
+			public function onGetPosInfo(e:Event):void
+			{
+				var gpsinfo:String = URLLoader(e.target).data;
+				if(gpsinfo==null||gpsinfo=="")
+				{
+					return;
+				}
+				var infoArray:Array = gpsinfo.split("*");
+				if(infoArray.length < 2)
+				{
+					this.imsmap.setErrorText("未查到定位信息");
+					return;
+				}
+				var colName:Array = infoArray[0].toString().split(",");
+				var row:Array = infoArray[1].toString().split(",");
+				this.detail.removeAllChildren();
+				for(var i:int = 0;i < colName.length;i++)
+				{
+					var rowtext:Text = new Text();
+					rowtext.text = colName[i] + ":" + row[i];
+					this.detail.addChild(rowtext as DisplayObject);
+					if(colName[i] == "PLon")
+					{
+						this.PLon = parseFloat(row[i])/100;
+					}
+					if(colName[i] == "PLat")
+					{
+						this.PLat = parseFloat(row[i])/100;
+					}
+				}
+				
+				if(this.posMarker == null)
+				{
+					var location:Marker = new Marker();
+					location.setIconSrc("image/mark/walk.gif");
+					location.logicX = this.PLon;
+					location.logicY = this.PLat;
+					location.name = "我在这个位置哦";
+					location.toolTip = this.device.text;
+					location.enableShowName = true;
+					this.posMarker = this.imsmap.addChild(location);
+				}
+				else
+				{
+					Marker(this.posMarker).logicX = this.PLon;
+					Marker(this.posMarker).logicY = this.PLat;
+					Marker(this.posMarker).updatePosition();
+				}
+
+				if(this.PLat != 0 && this.PLon != 0)
+				{
+					if(this.showAtCenter.selected)
+					{
+						this.imsmap.panTo(PLon,PLat);
+					}
+					else
+					{
+						if(this.posMarker.x < 1 || this.posMarker.y < 1 || this.posMarker.x > this.imsmap.width ||
+						this.posMarker.y > this.imsmap.height)
+						{
+							this.imsmap.panTo(PLon,PLat);
+						}
+					}
+					if(path == null)
+					{
+						path = new IMSRoad();
+						path.imsmap=this.imsmap;
+					}
+					if(path._roadCoorArr.length != 0) 
+					{
+						path._roadCoorArr += ",";
+					}
+					path._roadCoorArr = path._roadCoorArr.concat(this.PLon + "," + this.PLat);
+					if(this.enablePathDraw.selected)
+					{
+						this.path.updatePosition();
+						this.path.visible = true;
+					}
+				}
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public override function close():void
+			{
+				if(this.posMarker != null)
+				{
+					this.imsmap.removeChild(this.posMarker);
+				}
+				if(this.path != null)
+				{
+					this.path.clear();
+				}
+				this.path = null;
+				this.posMarker = null;
+				
+				if(this.timer.running)
+				{
+					this.timer.stop();
+				}
+				
+				this.enableGPS.selected = false;
+				this.enablePathDraw.selected = false;
+				this.showAtCenter.selected = false;
+				super.close();
+			}
+			/**
+			 * 与服务器通信错误回调函数
+			 */ 
+			private function onSecurityError(e:Event):void
+		    {
+		    	Alert.show("安全性错误！请检查服务器是否允许跨域访问。","提示");
+		    }
+		    /**
+			 * 请求出错回调函数
+			 */ 
+		    private function onIOError(e:Event):void
+		    {
+		    	Alert.show("请求出错。","提示");
+		    }
+		    
+		]]>
+	</mx:Script>
+</IMSWindow>

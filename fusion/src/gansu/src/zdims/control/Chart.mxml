@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 统计图窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IChart"  xmlns:mx="http://www.adobe.com/2006/mxml"  layout="absolute" x="200" y="200"  width="666" height="502" title="统计图窗口" fontSize="12" borderThicknessLeft="2" borderThicknessRight="2" creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import zdims.map.IMSMap;
+			import sjd.managers.ResizeManager;
+			import mx.charts.series.items.PieSeriesItem;
+			import mx.charts.HitData;
+			import Mapgis7.WebService.BasLib.CAttDataRow;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import Mapgis7.WebService.BasLib.CAttDataTable;
+			
+			private var _data:CAttDataTable;
+
+			/**
+			 * 控件初始化函数
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				ResizeManager.enableResize(this,100);
+			}
+			/**
+			 * 绑定数据
+			 */
+			public function setDataProvider(dataTable:CAttDataTable):void
+			{
+				this._data = dataTable;
+				if(this._data == null)
+				{ 
+					return;
+				}
+				var fldNum:int = dataTable.Columns.FldNumber;
+				var data:ArrayCollection=new ArrayCollection();
+				
+				for(var i:int=0;i<fldNum;i++)
+				{
+					data.addItem(dataTable.Columns.FldName[i]);
+				}
+				this.xaxis.dataProvider = data;
+				this.yaxis.dataProvider = data;
+				this.columnchart.dataProvider = null;
+				this.piechart.dataProvider = null;
+				
+			}
+			/**
+			 * 绘制统计图
+			 */
+			public function drawChart():void
+			{
+				if(this._data == null)
+				{
+					Alert.show("未设置统计数据","提示");
+					return;
+				}
+				//generate the datacollection
+				var chartData:ArrayCollection = new ArrayCollection();
+				var rowNum:int = this._data.Rows.length;
+				
+				for(var i:int = 0;i < rowNum;i++)
+				{
+					var values:Array = CAttDataRow(this._data.Rows[i]).Values;
+					chartData.addItem({x:(i.toString()+":"+values[this.xaxis.selectedIndex]),y:values[this.yaxis.selectedIndex]});
+				}
+				if(this.chartType.selectedIndex == 0)
+				{
+					this.labelx.displayName = this._data.Columns.FldName[this.xaxis.selectedIndex];
+					this.labely.displayName = this._data.Columns.FldName[this.yaxis.selectedIndex];
+					this.columnchart.dataProvider = chartData;
+					this.columnchart.visible = true;
+					this.piechart.visible = false;
+				}
+				else
+				{
+					this.piechart.dataProvider = chartData;
+					this.columnchart.visible = false;
+					this.piechart.visible = true;
+				}
+			}
+			/**
+			 * 显示文本的处理函数
+			 */
+			private function labelFormat(categoryValue:Object, previousCategoryValue:Object, axis:CategoryAxis, categoryItem:Object):String
+			{
+				categoryValue=categoryValue.toString().substring(categoryValue.toString().indexOf(":")+1);
+				if(categoryValue.toString().length > 8)
+				{
+					return categoryValue.toString().substring(0,5) + "…";
+				}
+				else
+				{
+					return categoryValue.toString();
+				}
+			}
+			/**
+			 * 鼠标移动显示文本
+			 */
+			private function dataTipFunction(hitData:HitData):String
+			{
+				var obj:Object = hitData.item;
+				var percentValue:String = PieSeriesItem(hitData.chartItem).percentValue.toString().concat("%") + "\n";
+				var xlabel:String=obj.x;
+				xlabel=xlabel.substring(xlabel.indexOf(":")+1);
+				return percentValue + this.xaxis.selectedLabel.concat(":").concat(xlabel).concat("\n") + this.yaxis.selectedLabel.concat(":").concat(obj.y);
+			}
+			private function columTip(hitData:HitData):String
+			{
+				var obj:Object = hitData.item;
+				var xlabel:String=obj.x;
+				xlabel=xlabel.substring(xlabel.indexOf(":")+1);
+				return this.xaxis.selectedLabel.concat(":").concat(xlabel).concat("\n") + this.yaxis.selectedLabel.concat(":").concat(obj.y);
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Button x="379" y="46" label="关闭" width="74" height="22" click="close()"/>
+	<mx:Button x="276" y="46" label="确定" width="74" height="22" click="drawChart()"/>
+	<mx:ComboBox x="90" y="10" width="124" id="xaxis"></mx:ComboBox>
+	<mx:ComboBox x="329" y="10" width="124" id="yaxis"></mx:ComboBox>
+	<mx:Label x="6" y="13" text="横轴显示字段:"/>
+	<mx:Label x="244" y="13" text="纵轴显示字段:"/>
+	<mx:PieChart visible="true" x="10" y="75" id="piechart" width="642" height="383" dataTipFunction="dataTipFunction" showDataTips="true">
+		 
+		<mx:series>
+			<mx:PieSeries displayName="Series 1" field="y"/>
+		</mx:series>
+	</mx:PieChart>
+	<mx:ColumnChart x="10" y="75" visible="false" id="columnchart" width="641" height="383" fontSize="12" dataTipFunction="columTip" showDataTips="true" showLabelVertically="true">
+			<mx:horizontalAxis>
+                <mx:CategoryAxis id="labelx" categoryField="x" displayName="x" labelFunction="labelFormat"/>
+            </mx:horizontalAxis>
+            
+            <mx:verticalAxis>
+                <mx:LinearAxis id="labely" displayName="y" baseAtZero="true" maximumLabelPrecision="10" />
+            </mx:verticalAxis>
+            <mx:series>
+                <mx:ColumnSeries id="columSeries"
+                    xField="x" 
+                    yField="y" 
+                    displayName=""
+                    labelPosition="outside"
+                />
+            </mx:series>
+	</mx:ColumnChart>
+	<mx:ComboBox id="chartType" x="90" y="44" width="124" dataProvider="['柱状图','饼图']"></mx:ComboBox>
+	<mx:Label x="10" y="47" text="统计图形状:"/>
+	
+</IMSWindow>

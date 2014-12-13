@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas
+	xmlns:mx="http://www.adobe.com/2006/mxml" implements="com.outsmart.dock.core.IDockItemRenderer" 
+	xmlns:controls="lib.dock.controls.*"
+	
+	horizontalScrollPolicy="off" 
+	verticalScrollPolicy="off"
+	
+	rollOverEffect="{rollOverEffect}" 
+	rollOutEffect="{rollOutEffect}"
+	>
+	
+	<mx:Script>
+	<![CDATA[
+		import mx.effects.Glow;
+		import mx.effects.Effect;
+		import com.outsmart.dock.core.IDockItemRenderer;
+		import com.outsmart.dock.core.Dock;
+		
+		[Bindable] private var _data:Object;
+		[Bindable] private var _over:Boolean;
+		[Bindable] private var _dock:Dock;
+
+		/**
+		 * The data associated with this item.
+		 */
+		public override function get data():Object { return this._data; }
+		public override function set data(value:Object):void { this._data = value; }
+			
+		/**
+		 * Whether or not the mouse is over the current renderer.
+		 */
+		public function get over():Boolean { return this._over; }
+		public function set over(value:Boolean):void { this._over = value; }
+
+		/**
+		 * The dock for this item renderer.
+		 */
+		public function get dock():Dock { return this._dock; }
+		public function set dock(value:Dock):void { this._dock = value; }
+
+		/**
+		 * The roll over effect played on the item.
+		 */
+		private function get rollOverEffect():Effect {
+			var effect:Glow = new Glow();
+			effect.blurXTo = effect.blurYTo = 10;
+			effect.alphaFrom = 0;
+			effect.alphaTo = 0.6;
+			effect.color = 0xFFFFFF;
+			return effect;
+		}
+
+		/**
+		 * The roll out effect played on the item.
+		 */
+		private function get rollOutEffect():Effect {
+			var effect:Glow = new Glow();
+			effect.blurXTo = effect.blurYTo = 0;
+			effect.alphaFrom = 0.6;
+			effect.alphaTo = 0;
+			effect.color = 0xFFFFFF;
+			return effect;
+		}
+
+	]]>
+	</mx:Script>
+	<mx:Image id="image" source="{_data.url}" left="0" top="0" bottom="0" right="0" />
+	
+</mx:Canvas>

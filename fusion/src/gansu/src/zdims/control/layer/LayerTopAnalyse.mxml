@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 拓扑分析 -->
+<IMSWindow xmlns="zdims.control.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="366"
+		   height="156"
+		   layout="vertical"
+		   title="拓扑分析"
+		   creationComplete="initial()">
+	<mx:HBox height="27">
+		<mx:RadioButtonGroup id="radiogroup1"/>
+		<mx:Label text="当前鼠标操作:"/>
+		<mx:RadioButton value="0"
+						label="选取第一个区要素"
+						groupName="radiogroup1"
+						click="setMouseFun(0)"/>
+		<mx:RadioButton value="1"
+						label="选取第二个区要素"
+						groupName="radiogroup1"
+						click="setMouseFun(1)"/>
+	</mx:HBox>
+	<mx:HBox height="26"
+			 horizontalAlign="left">
+		<mx:Label text="设置容差半径:"/>
+		<mx:TextInput id="buffer"
+					  text="0.002"
+					  width="118"/>
+		<mx:Button label="提交"
+				   click="submit()"/>
+	</mx:HBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.CLayerGetByID;
+			import Mapgis7.WebService.BasLib.CLayerSelectParam;
+			import Mapgis7.WebService.BasLib.CLayerSelectAndGetAtt;
+			import zdims.event.IMSMapEvent;
+			import zdims.draw.EDrawType;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.draw.IMSCanvas;
+			import mx.core.Application;
+			import Mapgis7.WebService.BasLib.IWebGeometry;
+			import Mapgis7.WebService.BasLib.CWebSelectParam;
+			import Mapgis7.WebService.BasLib.CMapSelectParam;
+			import zdims.util.IMSOperType;
+			import zdims.util.SpacialAnalyse;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.CRegionRelationAnalyse;
+			import Mapgis7.WebService.BasLib.SFeatureGeometry;
+			import Mapgis7.WebService.BasLib.CGetObjByID;
+			import Mapgis7.WebService.BasLib.CAttDataRow;
+			import Mapgis7.WebService.BasLib.CAttDataSet;
+			import Mapgis7.WebService.BasLib.CAttDataTable;
+			import Mapgis7.WebService.BasLib.CMapSelectAndGetAtt;
+			import Mapgis7.WebService.BasLib.ESelectionType;
+			import mx.events.FlexEvent;
+			
+			private var _firstFeature:SFeatureGeometry;
+			private var _secondFeature:SFeatureGeometry;
+			private var _spatial:SpacialAnalyse;
+			/**
+			 * 窗口初始化
+			 */ 
+			public function initial():void
+			{
+				this.addEventListener(FlexEvent.HIDE, removeMouseFun);
+			}
+			/**
+			 * 移出鼠标按下事件
+			 */ 
+			public function removeMouseFun(e:Event):void
+			{
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP, selFeature);
+			}
+			/**
+			 * 设置鼠标按下事件，选择要素
+			 */ 
+			public function setMouseFun(featureType:int):void
+			{
+				this.imsmap.setCurOper(IMSOperType.SelectByHitting);
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP, selFeature);
+				this.imsmap.addEventListener(IMSMapMouseEvent.MAP_MOUSEUP, selFeature);
+				this.imsmap.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				this.imsmap.removeEventListener(IMSMapMouseEvent.MAP_MOUSEUP,selFeature);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				
+			}
+			/**
+			 * 选择要素
+			 */ 
+			public function selFeature(e:Event):void
+			{
+				if (!this.imsmap.existActiveLayerObj())
+					return;
+				var mapsel:CLayerSelectParam = new CLayerSelectParam();
+				var websel:CWebSelectParam = new CWebSelectParam();
+				websel.CompareRectOnly = this.imsmap.activeLayerObj.compareRectOnly;
+				websel.Geometry = this.imsmap.graphicCanvas.getSelectedDot();
+				if (websel.Geometry != null)
+				{
+					websel.GeomType = IWebGeometry(websel.Geometry).GetGeomType();
+				}
+				websel.MustInside = this.imsmap.activeLayerObj.mustInside;
+				websel.NearDistance = this.imsmap.activeLayerObj.nearDistanse;
+				websel.SelectionType = ESelectionType.SpatialRange;
+				mapsel.WebSelectParam = websel;
+				mapsel.PageCount = 0;
+				this.imsmap.activeLayerObj.layerSelectAndGetAtt(mapsel, setFeature);
+			}
+			/**
+			 * 获取查询到得要素信息
+			 */ 
+			public function setFeature(e:Event):void
+			{
+				var obj:CLayerSelectAndGetAtt = this.imsmap.activeLayerObj.onLayerSelectAndGetAtt(e);
+				if (obj == null)
+				{
+					Alert.show("未选取到要素，请重新选取！");
+					return;
+				}
+				var idx:int=this.imsmap.activeLayerObj.activeLayerIndex;
+				var curRltTable:CAttDataTable = CAttDataTable(CAttDataSet(obj.AttDS[this.imsmap.activeLayerObj.activeGdbIndex]).attTables[idx]);
+				if (curRltTable.Rows.length < 1)
+				{
+					Alert.show("未选取到要素，请重新选取！");
+					return;
+				}
+				var row:CAttDataRow = curRltTable.Rows[0] as CAttDataRow;
+				var getGeo:CLayerGetByID = new CLayerGetByID();
+				getGeo.FeatureID = row.FID;
+				getGeo.GdbIndex = this.imsmap.activeLayerObj.activeGdbIndex;
+				getGeo.LayerIndex = this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomByFID(getGeo, flashFeature);
+			}
+			/**
+			 * 闪烁查询到的要素信息
+			 */ 
+			public function flashFeature(e:Event):void
+			{
+				var geoObj:SFeatureGeometry = this.imsmap.activeLayerObj.onGetGeomByFID(e);
+				if (geoObj == null)
+				{
+					return;
+				}
+				this.imsmap.graphicCanvas.flashGeo(geoObj, true);
+				if (this.radiogroup1.selectedValue == 0)
+				{
+					this._firstFeature = geoObj;
+				}
+				else
+				{
+					this._secondFeature = geoObj;
+				}
+			}
+			/**
+			 * 进行拓扑分析
+			 */ 
+			public function submit():void
+			{
+				this.topRlt.text = "";
+				if (this._firstFeature == null)
+				{
+					Alert.show("进行拓扑分析的第一个要素还未选取完成！");
+					return;
+				}
+				if (this._secondFeature == null)
+				{
+					Alert.show("进行拓扑分析的第二个要素还未选取完成！");
+					return;
+				}
+				var obj:CRegionRelationAnalyse = new CRegionRelationAnalyse();
+				
+				obj.Reg0 = this._firstFeature.RegGeom[0];
+				obj.Reg1 = this._secondFeature.RegGeom[0];
+				obj.NearDis = parseInt(this.buffer.text);
+				if(obj.NearDis.toString()=="NaN")
+				{
+					Alert.show("请输入正确的半径参数。","提示");
+					return;	
+				}
+				this._spatial = new SpacialAnalyse(this.imsmap.activeLayerObj);
+				this._spatial.regionRelationAnalyse(obj, onSubmit);
+			}
+			/**
+			 * 获取拓扑分析结果
+			 */ 
+			public function onSubmit(e:Event):void
+			{
+				var data:String=this._spatial.onRegionRelationAnalyse(e);
+				switch(data)
+				{
+					case "Unknown":
+						data="未知类型";
+						break;
+					case "Intersect":
+						data="相交";
+						break;
+					case "Disjoin":
+						data="相离";
+						break;
+					case "Include":
+						data="包含";
+						break;
+					case "Adjacent":
+						data="相邻";
+						break;
+					default:
+						data="未知类型";
+						break;
+				}
+				this.topRlt.text = data;
+			}
+		]]>
+	</mx:Script>
+	<mx:HBox height="26"
+			 horizontalAlign="left">
+		<mx:Label text="拓扑分析结果:"/>
+		<mx:Label text="未知类型"
+				  color="#EF1A1A"
+				  id="topRlt"/>
+	</mx:HBox>
+</IMSWindow>

@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 缓冲区分析控件   -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IBufferAnalyse" title="缓冲区分析控件" xmlns:mx="http://www.adobe.com/2006/mxml" width="260" height="248" creationComplete="onCreate()">
+	<mx:Script>
+		<![CDATA[
+			import zdims.util.SpacialAnalyse;
+			import zdims.util.RectBound;
+			import zdims.control.layer.LayerDataViewer;
+			import mx.formatters.DateBase;
+			import mx.events.CloseEvent;
+			import mx.effects.AnimateProperty;
+			import mx.utils.Base64Decoder;
+			import mx.controls.Image;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.*;
+			/**
+			 * 时间控制属性
+			 */ 
+			private var clipTimer:Timer;
+			/**
+			 * 缓冲区分析操作需要的参数
+			 */ 
+			private var _targetFeature:CGetObjByID;
+			/**
+			 * 缓冲区分析操作需要的参数
+			 */ 
+			private var _targetGeometry:Array;
+			/**
+			 * 缓冲区分析操作需要的参数
+			 */ 
+			private var _targetAttStruct:CAttStruct;
+			/**
+			 * 缓冲区分析操作需要的参数
+			 */ 
+			private var _targetAttDataRow:Array;
+			/**
+			 * 缓冲区分析的结果图层名
+			 */ 
+			private var _bufferRltLayerName:String;
+			/**
+			 * 缓冲区结果图片
+			 */ 
+			private var _bufferImage:Image;
+			private var _spatial:SpacialAnalyse;
+			private var _serverAddr:String;
+			[Inspectable(category="MapGisIMS")]
+			public var layerDataViewer:LayerDataViewer;
+			/**
+			 * 缓冲区分析处理事件
+			 * @param e
+			 *
+			 */
+			public function bufferMapByGeom():void
+			{
+				this.visible = true;
+				this._serverAddr=this.imsmap.activeMapDoc.serverAddress;
+				this._targetFeature=null;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeMapDoc);
+			}
+			/**
+			 * 缓冲区分析处理事件
+			 * @param e
+			 *
+			 */
+			public function bufferLayerByGeom():void
+			{
+				this.visible = true;
+				this._serverAddr=this.imsmap.activeLayerObj.serverAddress;
+				this._targetFeature=null;
+				this._spatial = new SpacialAnalyse(this.imsmap.activeLayerObj);
+			}
+			/**
+			 * 设置传入参数
+			 */ 
+			public function setTargetFeature(target:CGetObjByID):void
+			{
+				_targetFeature = target;
+			}
+			/**
+			 * 设置传入参数
+			 */ 
+			public function setTargetGeometry(target:Array):void
+			{
+				_targetGeometry = target;
+			}
+			/**
+			 * 设置传入参数
+			 */ 
+			public function setTargetAttDataRow(target:Array):void
+			{
+				_targetAttDataRow = target;
+			}
+			/**
+			 * 设置传入参数
+			 */ 
+			public function setTargetAttStruct(target:CAttStruct):void
+			{
+				_targetAttStruct = target;
+			}
+			/**
+			 * 初始化函数
+			 */ 
+			public function onCreate():void
+			{
+				this.addEventListener(CloseEvent.CLOSE,clearImage);
+			}
+			/**
+			 * 提交按钮触发函数
+			 */ 
+			public function submit():void
+			{
+				if(this.bufferRadius.text == "") 
+				{
+					Alert.show("请输入缓冲分析半径。","提示");
+					return;
+				}
+				if(this.traceRadius.text == "") 
+				{
+					Alert.show("请输入缓冲跟踪半径。","提示");
+					return;
+				}
+				if(this._targetFeature == null)
+				{
+					if(this._targetGeometry == null) 
+					{
+						Alert.show("请输入需要缓冲的信息。","提示");
+						return;
+					}
+					
+					var  bufferObj:CBufferByGeometry = new CBufferByGeometry();
+					
+					bufferObj.BufferRadius = parseFloat(this.bufferRadius.text);
+					bufferObj.TraceRadius = parseFloat(this.traceRadius.text);
+					if(bufferObj.BufferRadius.toString()=="NaN" ||bufferObj.TraceRadius.toString()=="NaN")
+					{
+						Alert.show("请输入正确的半径参数。","提示");
+						return;	
+					}
+					bufferObj.AttRows=this._targetAttDataRow;
+					bufferObj.AttStrct=this._targetAttStruct;
+					bufferObj.SfGeometry=this._targetGeometry;
+					var date:Date=new Date();
+					bufferObj.ResultLayerName = this.resultLayerName.text+date.toTimeString();
+					bufferObj.ResultLayerType = EXClsType.SFeatureCls;
+					this._bufferRltLayerName = bufferObj.ResultLayerName;
+					this._spatial.bufferByGeometry(bufferObj,onSubmit);
+				}
+				else
+				{
+					var  bufferObjforMap:CBufferFeature = new CBufferFeature();
+					bufferObjforMap.BufferRadius = parseFloat(this.bufferRadius.text);
+					bufferObjforMap.TraceRadius = parseFloat(this.traceRadius.text);
+					if(bufferObjforMap.BufferRadius.toString()=="NaN" ||bufferObjforMap.TraceRadius.toString()=="NaN")
+					{
+						Alert.show("请输入正确的半径参数。","提示");
+						return;	
+					}
+					bufferObjforMap.FeatureInfo = this._targetFeature;
+					var date:Date=new Date();
+					bufferObjforMap.ResultLayerName = this.resultLayerName.text+date.toTimeString();
+					bufferObjforMap.ResultLayerType = EXClsType.SFeatureCls;
+					this._bufferRltLayerName = bufferObjforMap.ResultLayerName;
+					this._serverAddr=this.imsmap.activeMapDoc.serverAddress;
+					this.imsmap.activeMapDoc.bufferFeature(bufferObjforMap,onMapSubmit);
+				}
+				clipTimer = new Timer(1000);
+				
+				clipTimer.addEventListener(TimerEvent.TIMER,onTimer);
+				clipTimer.start();
+				this.button_submit.label = "0秒";
+				this.button_submit.enabled = false;
+			}
+			/**
+			 * 缓冲区分析回调函数
+			 */ 
+			private function onSubmit(e:Event):void
+			{
+				cancel();
+				var Rlt:COperResult = this._spatial.onBufferByGeometry(e);
+				showRlt(Rlt);
+			}
+			/**
+			 * 缓冲区分析回调函数
+			 */ 
+			private function onMapSubmit(e:Event):void
+			{
+				cancel();
+				var Rlt:COperResult = this.imsmap.activeMapDoc.onBufferFeature(e);
+				showRlt(Rlt);
+			}
+			public function showRlt(Rlt:COperResult):void
+			{
+				if(Rlt == null) 
+				{
+					return;
+				}
+				if(Rlt.OperResult)
+				{
+					Alert.yesLabel = "查看结果";  
+	     			Alert.noLabel = "取消"; 
+					Alert.show("缓冲区分析成功。是否需要查看结果图层属性记录？" , "提示",Alert.YES|Alert.NO , this , onAlert , null , Alert.NO);  
+//					this.checkbox_show.visible = true;
+//					this.checkbox_show.selected = false;
+				}
+				else
+				{
+					Alert.show("缓冲区分析失败。错误信息：" + Rlt.ErrorInfo,"提示");
+				}
+			}
+			/**
+			 * 查看图层属性记录回调函数
+			 */ 
+			public function onAlert(e:CloseEvent):void
+			{
+				if(e.detail != Alert.YES)
+				{
+					return;
+				} 
+				if(this.layerDataViewer==null)
+				{
+					Alert.show("layerDataViewer属性为空！请创建LayerDataViewer控件！");
+					return;
+				}
+				var layerType:String = EXClsType.SFeatureCls;
+				this.layerDataViewer.showLayerAttRecord(this._bufferRltLayerName,layerType,this._serverAddr);
+			}
+			/**
+			 * 时间回调函数
+			 */
+			private function onTimer(e:TimerEvent):void
+			{
+				this.button_submit.label = Timer(e.target).currentCount.toString() + "秒";
+			}
+			/**
+			 * 取消按钮触发函数
+			 */ 
+			public function cancel():void
+			{
+				if(this.clipTimer != null && this.clipTimer.running)
+				{
+					this.clipTimer.stop();
+				}
+				this.button_submit.label = "提交";
+				this.button_submit.enabled = true;
+				if(cursorManager.currentCursorID > 0)
+				{
+					cursorManager.removeBusyCursor();
+				}
+			}
+			/**
+			 * 关闭回调函数：清除图像
+			 */ 
+			public function clearImage(e:Event):void
+			{
+				cancel();
+				if(this._bufferImage != null)
+				{
+					this.imsmap.removeChild(this._bufferImage);
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:Label x="10" y="24" text="缓冲分析半径："/>
+	<mx:TextInput id="bufferRadius" x="98" y="19" text="0.003" width="138"/>
+	<mx:Label x="10" y="54" text="缓冲跟踪半径："/>
+	<mx:TextInput id="traceRadius" x="98" y="50" text="0.002" width="138"/>
+	<mx:Button id="button_submit" x="47" y="142" label="提交" width="65" click="submit()"/>
+	<mx:Button x="121" y="142" label="取消" width="65" click="cancel()"/>
+	<mx:Label x="10" y="86" text="结果图层名："/>
+	<mx:TextInput id="resultLayerName" x="98" y="82" text="buffer" width="138"/>
+	<!--<mx:CheckBox x="47" y="180" visible="false" id="checkbox_show" change="show()" label="叠加显示缓冲结果图像" width="160"/>-->
+</IMSWindow>

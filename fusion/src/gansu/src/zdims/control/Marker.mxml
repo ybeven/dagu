@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 标注窗口 -->
+<mx:Canvas fontSize="12"
+		   implements="zdims.interfaces.control.IMarker"
+		   horizontalScrollPolicy="off"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="207"
+		   height="25"
+		   backgroundAlpha="0"
+		   creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import zdims.event.IMSMapEvent;
+			import zdims.util.IMSOperType;
+			import zdims.event.IMSMapMoveEvent;
+			import zdims.map.IMSMap;
+			import mx.containers.TitleWindow;
+			import mx.events.CloseEvent;
+			import mx.core.IFlexDisplayObject;
+			import mx.managers.PopUpManager;
+			import mx.events.FlexEvent;
+			import mx.controls.Alert;
+			
+			public var logicX:Number = 0;
+			public var logicY:Number = 0;
+			public var oldx:int=0;
+			public var oldy:int=0;
+			public var markerInfo:MarkerContent;
+			private var _map:IMSMap;
+			private var haspopup:Boolean = false;
+			private var exterClickFun:String = "";
+			private var isClickToShow:Boolean = false;
+			private var iconSrc:String = "image/mark/p1.gif";
+			private var _enableShowName:Boolean = false;
+
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				this._map = m;
+				if(this._map!=null)
+				{
+					this._map.addEventListener(IMSMapEvent.MAP_CHANGE,updatePosition);
+	    			this._map.addEventListener(IMSMapMoveEvent.MOVE_STEP,updatePosition);
+    			}
+			}
+
+			public function get imsmap():IMSMap
+			{
+				if(_map==null&&this.parent is IMSMap)
+					imsmap=this.parent as IMSMap;
+				return this._map;
+			}
+			/**
+			 * 是否显示名字
+			 */ 
+			public function set enableShowName(value:Boolean):void
+			{
+				_enableShowName = value;
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public function init():void
+			{
+				this.icon0.addEventListener(MouseEvent.CLICK, onMarkClick);
+				if (this.exterClickFun != "")
+				{
+					this.icon0.addEventListener(MouseEvent.CLICK, exterCall);
+				}
+				this.icon0.source = this.iconSrc;
+				this.markName.text = this.name;
+				this.markName.visible = this._enableShowName;
+				if(this.imsmap!=null)
+					updatePosition();
+			}
+			/**
+			 * 设置标注显示信息
+			 */ 
+			public function setMarkerContent(title:String, contentText:String, imageSource:String=""):void
+			{
+				this.markerInfo = new MarkerContent();
+				this.markerInfo.name = this.markerInfo.uid;
+				markerInfo.addEventListener(CloseEvent.CLOSE, onMarkerInfoClose);
+				this.markerInfo.setMarkerContent(title, contentText, imageSource);
+				this.markerInfo.isPopUp = true;
+				this.markerInfo.visible = false;
+				this.imsmap.addChild(this.markerInfo);
+			}
+			/**
+			 * 设置标注显示图片
+			 */ 
+			public function setIconSrc(src:String):void
+			{
+				this.iconSrc = src;
+			}
+			/**
+			 * 更新标注的位置
+			 */ 
+			public function updatePosition(e:Event=null):void
+			{
+				if(e is IMSMapMoveEvent)
+				{
+					if(this.imsmap.operType==IMSOperType.Drag)
+					{
+						var xLen:int=this.imsmap.mouseMoveScrPnt.x - this.imsmap.mouseDownScrPnt.x;
+                    	var yLen:int=this.imsmap.mouseMoveScrPnt.y - this.imsmap.mouseDownScrPnt.y;
+                    	this.x =this.oldx+xLen;
+                        this.y = this.oldy+yLen;
+					}
+					return;
+				}
+				var coor:Point = this.imsmap.logicToScreen(logicX, logicY);
+
+				this.oldx=this.x = coor.x - 10;
+				this.oldy=this.y = coor.y - this.height;
+				if (this.markerInfo != null)
+				{
+					this.markerInfo.y = this.y + this.height;
+					this.markerInfo.x = this.x + 20;
+				}
+			}
+			/**
+			 * 添加标注鼠标事件
+			 */ 
+			public function onMarkMouseOver(e:Event=null):void
+			{
+				/*try
+				{
+					if (!this.haspopup)
+						onMarkClick(null);
+				}
+				catch (e:Error)
+				{
+				}*/
+			}
+			/**
+			 * 添加标注鼠标移出事件
+			 */ 
+			public function onMarkMouseOut(e:Event=null):void
+			{
+				/*try
+				{
+					if (!isClickToShow)
+						onMarkerInfoClose(null);
+						;
+				}
+				catch (e:Error)
+				{
+				}*/
+			}
+			/**
+			 * 添加标注单击事件
+			 */ 
+			public function onMarkClick(e:MouseEvent):void
+			{
+				if (this.markerInfo == null)
+					return;
+				if (this.haspopup)
+				{
+					this.markerInfo.visible = false;
+					this.haspopup = false;
+					return;
+				}
+				this.markerInfo.y = this.y + this.height;
+				this.markerInfo.x = this.x + 20;
+				this.haspopup = true;
+				this.markerInfo.visible = true;
+
+				isClickToShow = e == null ? false : true;
+			}
+			/**
+			 * 激活标注显示信息窗口
+			 */ 
+			public function active(showAtCenter:Boolean=true, showContent:Boolean=false):void
+			{
+				if (showAtCenter)
+				{
+					this.imsmap.panTo(this.logicX, this.logicY);
+				}
+				if (showContent)
+				{
+					onMarkMouseOver();
+				}
+			}
+			/**
+			 * 设置标注显示信息
+			 */ 
+			public function setContentVisible(show:Boolean=false):void
+			{
+				if (show)
+					onMarkMouseOver();
+				else
+					onMarkMouseOut();
+			}
+			/**
+			 * 关闭标注信息窗口
+			 */ 
+			public function onMarkerInfoClose(e:Event):void
+			{
+				this.markerInfo.visible = false;
+				this.haspopup = false;
+			}
+			/**
+			 * 添加单击事件
+			 */ 
+			public function addExterClickEvent(exterFun:String):void
+			{
+				exterClickFun = exterFun;
+			}
+			/**
+			 * 标注单击事件回调函数
+			 */ 
+			public function exterCall(e:MouseEvent):void
+			{
+				ExternalInterface.call(this.exterClickFun, this.id);
+			}
+		]]>
+	</mx:Script>
+	<mx:Image id="icon0"
+			  buttonMode="true"
+			  source="image/mark/p1.gif"
+			  x="2"
+			  y="2"
+			  mouseOver="onMarkMouseOver()"
+			  mouseOut="onMarkMouseOut()"/>
+	<mx:Text id="markName"
+			 x="23"
+			 y="0"
+			 width="100"
+			 text="text"
+			 visible="true"/>
+</mx:Canvas>

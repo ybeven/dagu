@@ -1,0 +1,295 @@
+@charset "utf-8";
+body{
+	text-align:center;
+	font-family:微软雅黑 , 华文细黑;
+	font-size:12px;
+}
+
+hr{
+	width:80%;
+}
+
+.block{
+	font: 0px/0px sans-serif;
+	height:1px;
+	clear: both;
+	display: block;
+}
+
+a {
+blr:expression(this.onFocus=this.blur());
+text-decoration:none;
+outline:none;
+}
+
+.ui-tabs-panel a {
+	color:blue;
+}
+	
+	#detail a:hover, .name1 a:hover{
+		color:#F60;
+	}
+	#guide a:hover{
+		color:#000;
+	}
+
+img {
+blr:expression(this.onFocus=this.blur());
+outline:none;
+border:0px;
+}
+
+#container{
+	clear:both;
+	margin:0 auto;
+	width:989px;
+	background-color:#e2e2e2;
+}
+
+	#containerL{
+		clear:both;
+		margin:0 auto;
+		width:989px;
+		height:672px;
+		background-image:url(../images/Login.png);
+	}
+
+*{
+	font-family:微软雅黑 , 华文细黑;
+}
+
+input{
+	width:auto;
+	padding-top: 5px;
+	padding-left: 5px;
+	border:none;
+	outline:0;
+}
+
+	#login{
+		float:left;
+		width:100%;
+	}
+	
+		#inputbox{
+			float:left;
+			width:200px;
+			height:200px;
+			margin-top:325px;
+			margin-left:670px;
+		}
+		
+			#inputbox input{
+				width:170px;
+				height:20px;
+				font-size:16px;
+			}
+			
+			input.password{
+				margin-top:30px;
+			}
+
+			#login_notice
+			{
+				font-size:10px;
+				color:#F90;
+				padding-top: 10px;
+			}
+			
+	#login-button{
+		margin-top:15px;
+		margin-left:30px;
+		width:128px;
+		height:41px;
+		border:0px;
+		outline:0px;
+		position:relative;
+	}
+
+		#login_img{
+			background-image:url(../images/Login-button1.png);
+
+			left:0;
+			top:0;
+		}
+		
+		#login_img:hover{
+			background-image:url(../images/Login-button2.png);
+		}
+		
+#header{
+	float:left;
+	width:100%;
+	height:111px;
+	background-image:url(../images/headerbg.png);
+	background-repeat:no-repeat;
+}
+		
+    .Logo{
+		float:left;
+		width:400px;
+		height:100px;
+		background-image:url(../images/Logo.png);
+	}
+	
+	.time{
+		float:right;
+		width:500px;
+		height:70px;
+		margin-right:5px;
+	}
+	
+		.time1{
+			height:20px;
+			float:right;
+			margin-right:30px;
+			margin-top:15px;
+			font-size:15px;
+		}
+		
+		.time2{
+			height:30px;
+			width:350px;
+			float:right;
+			margin-right:35px;
+			font-family:华文细黑;
+			font-size:32px;
+			color:#FFF;
+			text-align:right;
+		}
+	
+	.welcome{
+		float:right;
+		width:500px;
+		margin-top:2px;
+		margin-right:30px;
+	}
+		
+		.name1{
+			float:right;
+			font-size:15px;
+			margin-right:10px;
+			margin-top:6px;
+		}
+		
+		.name2{
+			float:right;
+			font-size:20px;
+			color:#F60;
+			margin-right:10px;
+		}
+	
+	.navhead{
+		float:left;
+		width:100%;
+		height:11px;
+		background-image:url(../images/navhead.png);
+	}
+	
+#main{
+	float:left;
+	width:989px;
+	height:100%;
+}
+
+	#left{
+		float:left;
+		width:200px;
+		height:500px;
+		background-image:url(../images/leftbg.png);
+		background-repeat:repeat-y;
+	}
+	
+		#box{
+			float:left;
+			width:95%;
+			height:100%;
+		}
+		
+			div.link{
+				width:140px;
+				height:20px;
+				margin-top:2px;
+				margin-bottom:2px;
+				background-image:url(../images/linkbg.png);
+			}
+			
+			div.link:hover{
+				background-image:url(../images/linkbg-mo.png);
+			}
+
+			.link a:hover{
+				color:#F60;
+				font-size:15px;
+			}
+	
+	#right{
+		float:left;
+		width:789px;
+		height:100%;
+		background-image:url(../images/rightbg.png);
+		background-repeat:repeat-y;
+	}
+	
+		#window{
+			float:left;
+			width:100%;
+			height:500px;
+			background-image:url(../images/rightbg.png);
+			background-repeat:repeat-y;
+		}
+	
+			#guide{
+				color:#FFF;
+				text-align:left;
+				float:left;
+				width:85%;
+				height:30px;
+				margin-left:8%;
+				background-color:#abbcbf;
+				padding-top:10px;
+				padding-left:10px;
+			}
+			
+			#detail{
+				float:left;
+				width:94%;
+				height:450px;
+				margin-top:10px;
+				margin-left:4%;
+				overflow-y: auto;
+				overflow-x: auto;
+			}
+			
+			.del_ico
+			{
+				float: right;
+				background-image: url("images/ui-icons_cd0a0a_256x240.png");
+				background-position: -96px -128px;
+				width: 16px;
+				height: 16px;
+			}
+
+			.yes_ico
+			{
+				float: right;
+				background-image: url("images/ui-icons_2e83ff_256x240.png");
+				background-position: -64px -144px;
+				width: 16px;
+				height: 16px;
+			}
+
+			.highlight
+			{
+				clear:both;
+				margin:0 auto;
+				width:300px;
+			}
+		
+#footer{
+	float:left;
+	width:1240x;
+	height:60px;
+	background-image:url(../images/footer.png);
+	background-repeat:no-repeat;
+}

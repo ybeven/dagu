@@ -1,0 +1,41 @@
+/* CSS file */
+Alert 
+{
+    font-size:12px;
+}
+
+.MyLabel {
+    fontSize: 12;
+    fontWeight: normal;
+}
+ 
+.MyDataTip {
+    backgroundAlpha: 1.0;
+    backgroundColor: haloBlue;
+    color: white;
+    cornerRadius: 2;
+    fontWeight: bold;
+    letterSpacing: 1;
+    font-size:12px;
+}
+ 
+VSlider {
+    dataTipOffset: 0;
+    dataTipPrecision: 0;
+    dataTipPlacement: right;
+    dataTipStyleName: MyDataTip;
+    showTrackHighlight: true;
+    labelStyleName: MyLabel;
+     thumb-skin:Embed(source="image/navigator/m.png"); 
+     track-skin:Embed(source="image/navigator/T.png"); 
+}
+ToolTip {
+	font-size:12px;
+}
+.Title{
+	font-size:12px;
+}
+.MapContainer
+{
+	background-image:"image/globe.png";
+}

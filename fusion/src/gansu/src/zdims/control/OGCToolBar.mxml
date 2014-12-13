@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工具条 -->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml"
+		   x="100"
+		   width="441"
+		   creationComplete="init()">
+	<mx:ViewStack y="25"
+				  id="viewstack1"
+				  width="428"
+				  height="37"
+				  x="0"
+				  styleName="Title">
+		<mx:Canvas label="显示"
+				   width="100%"
+				   height="100%"
+				   id="displayWidget">
+			<mx:HBox width="377"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="放大"
+						  source="image/widget/btn_01.png"
+						  click="onSelectToolClick('zoomin',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="缩小"
+						  source="image/widget/btn_02.png"
+						  click="onSelectToolClick('zoomout',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="移动"
+						  source="image/widget/btn_03.png"
+						  click="onSelectToolClick('pan',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="更新"
+						  source="image/widget/btn_05.png"
+						  click="onSelectToolClick('refresh',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="复位"
+						  source="image/widget/btn_04.png"
+						  click="onSelectToolClick('restore',null)"/>
+			</mx:HBox>
+		</mx:Canvas>
+
+		<mx:Canvas label="查询"
+				   width="100%"
+				   height="100%"
+				   id="queryWidget">
+			<mx:HBox width="414"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="点击查询"
+						  source="image/widget/btn_06.png"
+						  click="onSelectToolClick('SelectByHitting',this.ogcDataViewer.selectByPoint)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="拉框查询"
+						  source="image/widget/btn_07.png"
+						  click="onSelectToolClick('SelectByRect',this.ogcDataViewer.selectByRect)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="属性条件查询"
+						  source="image/widget/btn_11.png"
+						  click="onSelectToolClick('',this.ogcConditionInput.selectByAttCondition)"/>
+			</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas label="编辑"
+				   width="100%"
+				   height="100%">
+			<mx:HBox width="376"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="添加点"
+						  source="image/widget/tool_21.gif"
+						  click="onSelectToolClick('SelectByHitting',this.editControl.addPoint)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="添加线"
+						  source="image/widget/tool_22.gif"
+						  click="onSelectToolClick('SelectByLine',this.editControl.addLine)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="添加区"
+						  source="image/widget/tool_23.gif"
+						  click="onSelectToolClick('SelectByPolygon',this.editControl.addPolygon)"/>
+			</mx:HBox>
+		</mx:Canvas>
+	</mx:ViewStack>
+	<mx:ButtonBar id="buttonBar"
+				  dataProvider="viewstack1"
+				  fontSize="12">
+	</mx:ButtonBar>
+	<mx:Script>
+			<![CDATA[
+			import zdims.map.IMSEagleEye;
+			import zdims.event.IMSMapEvent;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.util.IMSOperType;
+			import zdims.map.IMSMap;
+			import mx.core.UIComponent;
+			import mx.controls.Alert;
+			
+			private var lastEvent:String;
+			private var lastCallFun:Function;
+			
+			private var _map:IMSMap;
+			
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				if(m!=null)
+					m.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				this._map = m;
+			}
+			[Inspectable(category="MapGisIMS")]
+			/**
+			 * 给地图容器赋值
+			 */
+			public function get imsmap():IMSMap
+			{
+				return this._map;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public var ogcDataViewer:OGCDataViewer;
+			[Inspectable(category="MapGisIMS")]
+			public var ogcConditionInput:OGCConditionInput;
+			[Inspectable(category="MapGisIMS")]
+			public var editControl:OGCEditor;
+			[Inspectable(category="MapGisIMS")]
+			public var magnifier:Magnifier;
+			[Inspectable(category="MapGisIMS")]
+			public var eagleEye:IMSEagleEye;
+			/**
+			 * 窗口初始化
+			 */ 
+			private function init():void
+			{
+				try
+				{
+					ExternalInterface.addCallback("flOnSelectToolClick", onSelectToolClick);
+				}
+				catch (err:Error)
+				{
+				}
+			}
+			/**
+			 * 工具触发函数
+			 */
+			private function onSelectToolClick(activeTool:String,callback:Function,exterFun:String="",enableExterCallBack:Boolean=true):void
+			{
+				if(this.imsmap==null) 
+				{
+					Alert.show("OGCToolbar控件的map属性为空，请赋值。");
+					return;
+				}
+				if(this.ogcDataViewer==null)
+				{
+					Alert.show("OGCToolbar控件的ogcDataViewer属性为空，请赋值。");
+					return;
+				}
+				var isExter:Boolean=exterFun==""?false:true;
+			    switch(activeTool.toLowerCase())
+			    {
+			    	case "zoomin":
+			    		this.imsmap.setCurOper(IMSOperType.ZoomIn);
+			    		break;
+			    	case "zoomout":
+			    		this.imsmap.setCurOper(IMSOperType.ZoomOut);
+			    		break;
+			    	case "pan":
+			    		this.imsmap.setCurOper(IMSOperType.Drag);
+			    		break;
+			    	case "refresh":
+			    		this.imsmap.refresh();
+			    		break;
+			    	case "restore":
+			    		this.imsmap.restore();
+			    		break;
+			        case "selectbyhitting":
+			            this.imsmap.setCurOper(2001); 
+			            if(isExter&&!enableExterCallBack) 
+			            {
+			            	callback=this.ogcDataViewer.selectByPoint;
+			            	isExter=false;
+			            }
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+			       		 break;
+			        case "selectbyline":
+						this.imsmap.setCurOper(2005);
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+					case "selectbypolygon":
+					case "selectbypolygonandatt":
+						this.imsmap.setCurOper(2004);
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+			        case "selectbyrect":
+			            this.imsmap.setCurOper(2002);
+			            addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+			       		 break;
+			        default:
+						this.imsmap.setCurOper(IMSOperType.Drag); 
+						callback();
+				        break; 
+			        
+			    } 
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				removeMapEvent(this.lastEvent,this.lastCallFun);
+			}
+			private function addMapEvent(evtType:String,fun:Function):void
+			{
+				this.imsmap.addEventListener(evtType,fun);
+				this.lastEvent=evtType;
+				this.lastCallFun=fun;
+			}
+			private function removeMapEvent(evtType:String,fun:Function):void
+			{
+				if(evtType!=null&&fun!=null)
+				{
+					this.imsmap.removeEventListener(evtType,fun);
+				}
+			}
+			/**
+			 * 设置显示窗口
+			 */ 
+			private function setVisibility(obj:Object):void
+			{
+				if (obj == null)
+				{
+					Alert.show("未找到相应控件，可能原因是未创建相应控件或者创建了但该控件的imsmap属性未赋值！", "提示");
+					return;
+				}
+				UIComponent(obj).visible = !UIComponent(obj).visible;
+			}
+			]]>
+	</mx:Script>
+</mx:Canvas>

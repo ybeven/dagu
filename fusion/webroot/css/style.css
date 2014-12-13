@@ -1,0 +1,319 @@
+﻿@charset "utf-8";
+body{
+	text-align:center;
+	font-family:微软雅黑;
+	font-size:12px;
+}
+
+hr{
+	width:80%;
+}
+
+.block{
+	font: 0px/0px sans-serif;
+	height:1px;
+	clear: both;
+	display: block;
+}
+
+a {
+blr:expression(this.onFocus=this.blur());
+text-decoration:none;
+outline:none;
+}
+
+.ui-tabs-panel a {
+	color:blue;
+}
+	
+	#detail a:hover, .name1 a:hover{
+		color:#F60;
+	}
+	#guide a:hover{
+		color:#000;
+	}
+
+img {
+blr:expression(this.onFocus=this.blur());
+outline:none;
+border:0px;
+}
+
+#container{
+	clear:both;
+	margin:0 auto;
+	width:1240px;
+	background-color:#e2e2e2;
+}
+
+	#containerL{
+		clear:both;
+		margin:0 auto;
+		width:1240px;
+		height:650px;
+		background-color:#e2e2e2;
+	}
+
+*{
+	font-family:微软雅黑;
+}
+
+/*input#pici{
+	width: 100px;
+}*/
+
+input{
+	width:60px;
+	padding-left: 5px;
+	border:none;
+	outline:0;
+}
+
+	#login{
+		float:left;
+		width:100%;
+		height:600px;
+		margin-top:25px;
+		background-image:url(../images/Login.png);
+	}
+
+		#inputbox{
+			float:left;
+			width:15%;
+			height:104px;
+			margin-top:446px;
+			margin-left:860px;
+		}
+		
+			#inputbox input{
+				background-image:url(../images/input.png);
+				background-color:transparent;
+				background-repeat:no-repeat;
+				width:150px;
+				height:26px;
+				font-size:18px;
+			}
+			
+			input.password{
+				margin-top:28px;
+			}
+
+			#login_notice
+			{
+				font-size:15px;
+				color:#fff;
+				padding-top: 10px;
+			}
+			
+		#login-button{
+			float:right;
+			margin-top:460px;
+			margin-right:70px;
+			width:96px;
+			height:50px;
+			border:0px;
+			outline:0px;
+			position:relative;
+		}
+
+		#login_img{
+			position:absolute;
+			left:0;
+			top:0;
+			z-index:1;
+		}
+
+		#login_anim{
+			position:absolute;
+			left:0;
+			top:0;
+		}
+		
+#header{
+	float:left;
+	width:100%;
+	height:110px;
+	background-image:url(../images/headerbg.png);
+	background-repeat:no-repeat;
+}
+		
+    .Logo{
+		float:left;
+		width:400px;
+		height:140px;
+		background-image:url(../images/Logo.png);
+	}
+	
+	.time{
+		float:right;
+		width:500px;
+		height:70px;
+		margin-right:5px;
+	}
+	
+		.time1{
+			height:20px;
+			float:right;
+			margin-right:30px;
+			margin-top:15px;
+			font-size:15px;
+		}
+		
+		.time2{
+			height:30px;
+			width:350px;
+			float:right;
+			margin-right:35px;
+			font-family:华文细黑;
+			font-size:32px;
+			color:#FFF;
+			text-align:right;
+		}
+	
+	.welcome{
+		float:right;
+		width:500px;
+		margin-top:2px;
+		margin-right:30px;
+	}
+		
+		.name1{
+			float:right;
+			font-size:15px;
+			margin-right:10px;
+			margin-top:6px;
+		}
+		
+		.name2{
+			float:right;
+			font-size:20px;
+			color:#F60;
+			margin-right:10px;
+		}
+	
+	.navhead{
+		float:left;
+		width:100%;
+		height:30px;
+		background-image:url(../images/navhead.png);
+	}
+	
+#main{
+	float:left;
+	width:1240px;
+	height:100%;
+}
+
+	#left{
+		float:left;
+		width:200px;
+		height:470px;
+		background-image:url(../images/leftbg.png);
+		background-repeat:repeat-y;
+	}
+	
+		#box{
+			float:left;
+			width:95%;
+			height:100%;
+		}
+		
+			div.link{
+				padding-top:3px;
+				height:22px;
+				margin-top:4px;
+				margin-bottom:4px;
+				margin-left:0px;
+				background-image:url(../images/linkbg.png);
+			}
+			h3 {background-color:#cceeff;}
+			
+			div.link:hover{
+				background-image:url(../images/linkbg-mo.png);
+			}
+
+			.link a:hover{
+				color:#F60;
+				font-size:15px;
+			}
+	
+	#right{
+	
+		float:left;
+		width:1040px;
+		height:100%;
+		background-image:url(../images/rightbg.png);
+		background-repeat:repeat-y;
+	}
+	
+		#window{
+			float:left;
+			width:100%;
+			height:100%;
+			min-height:470px;
+			background-image:url(../images/detailbg.png);
+			background-repeat:repeat-y;
+		}
+	
+			#guide{
+				color:#FFF;
+				text-align:left;
+				float:left;
+				width:89%;
+				height:20px;
+				margin-left:5%;
+				background-color:#abbcbf;
+				padding-top:10px;
+				padding-left:10px;
+			}
+			
+			#detail{
+				font-size:14px;
+				float:left;
+				width:88%;
+				height:100%;
+				margin-top:10px;
+				margin-left:5%;
+			}
+			
+			.del_ico
+			{
+				float: right;
+				background-image: url("images/ui-icons_cd0a0a_256x240.png");
+				background-position: -96px -128px;
+				width: 16px;
+				height: 16px;
+			}
+
+			.yes_ico
+			{
+				float: right;
+				background-image: url("images/ui-icons_2e83ff_256x240.png");
+				background-position: -64px -144px;
+				width: 16px;
+				height: 16px;
+			}
+
+			.highlight
+			{
+				clear:both;
+				margin:0 auto;
+				width:300px;
+			}
+
+			.left_money
+			{
+				clear:both;
+				margin:5px 20px;
+				padding:5px 0px;
+				width:200px;
+				background-color:#97c8ff;
+			}
+		
+#footer{
+	float:left;
+	width:1240px;
+	height:70px;
+	background-image:url(../images/footer.png);
+	background-repeat:no-repeat;
+}

@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 编辑控件 -->
+<IMSWindow xmlns="zdims.control.*" showCloseButton="true"
+				implements="zdims.interfaces.control.IFeatureEditor"
+				headerColors="{['#D6EAF2','#D6EAF2']}"
+				horizontalAlign="center"
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				layout="vertical"
+				x="250"
+				y="200"
+				width="274"
+				height="404"
+				title="编辑控件"
+				fontSize="12"
+				borderThicknessLeft="2"
+				borderThicknessRight="2"
+				borderThicknessBottom="2"
+				close="onClose(null)"
+				creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.*;
+			import sjd.managers.ResizeManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.containers.HBox;
+			import mx.controls.*;
+			import zdims.map.OGCWSLayer;
+			
+			
+			public var currentDataViewer:OGCDataViewer;
+			
+			private var _featureID:Number = 0;
+			
+			private var _attStruct:CAttStruct;
+			private var _ogcLayer:OGCWSLayer;
+			private var _newAttValues:Array=new Array();
+			private var _targetGeo:Object;
+			private var _ogcCatalog:OGCCatalog;
+			[Inspectable(category="MapGisIMS")]
+			public function set ogcCatalog(catalogCtrl:OGCCatalog):void
+			{
+				this._ogcCatalog=catalogCtrl;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get ogcCatalog():OGCCatalog
+			{
+				return this._ogcCatalog;
+			}
+			[Inspectable(category="MapGisIMS")]
+			
+			public function set ogclayer(m:OGCWSLayer):void
+			{
+				this._ogcLayer = m;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get ogclayer():OGCWSLayer
+			{
+				return this._ogcLayer;
+			}
+
+			/**
+			 * 控件初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				ResizeManager.enableResize(this, 200);
+			}
+			/**
+			 * 设置编辑数据
+			 */ 
+			public function setTargetFeatureGeo(target:Object):void
+			{
+				_targetGeo = target;
+				this.visible = true;
+			}
+			/**
+			 * 设置属性结构
+			 */ 
+			public function setAttStruct(attStruct:CAttStruct):void
+			{
+				setAttStructAndValue(attStruct, null);
+			}
+			/**
+			 * 设置属性结构及属性字段值
+			 */ 
+			public function setAttStructAndValue(attStruct:CAttStruct, FIDAndValues:Array=null):void
+			{
+				this.activeControl(null);
+				_attStruct = attStruct;
+				this.removeAllChildren();
+				if (attStruct == null)
+					return;
+				//2.add each field
+				if (FIDAndValues != null && FIDAndValues.length > 0)
+				{
+					_featureID = FIDAndValues[0];
+				}
+				var fieldNum:int = attStruct.FldName.length;
+				for (var i:int = 0; i < fieldNum; i++)
+				{
+					var hbox:HBox = new HBox();
+					hbox.name = "hbox" + i;
+					hbox.percentWidth = 100;
+					var fldName:Label = new Label();
+					fldName.text = attStruct.FldName[i].toString().concat(": ");
+					fldName.width = 100;
+					var fldValue:TextInput = new TextInput();
+					fldValue.name = "fldvalue" + i;
+					if (FIDAndValues != null && FIDAndValues.length > i + 1)
+					{
+						fldValue.text = FIDAndValues[i + 1].toString();
+					}
+					else 
+					{
+						var a:int=0;
+						fldValue.text=a.toString();
+					}
+						
+					fldValue.width = 100;
+					if(this.ogclayer.LayerAttStruct!=null)
+						fldValue.toolTip = this.ogclayer.LayerAttStruct.FldType[i].toString().concat("类型");
+					hbox.addChild(fldName);
+					hbox.addChild(fldValue);
+					this.addChild(hbox);
+				}
+				
+				//3.add submit button and cancel button
+				var btnBox:HBox=new HBox();
+				var submitBtn:Button=new Button();
+				submitBtn.label="提交";
+				var closeBtn:Button=new Button();
+				closeBtn.addEventListener(MouseEvent.CLICK, this.onClose);
+				closeBtn.label="关闭";
+				if (FIDAndValues == null)
+				{
+					submitBtn.addEventListener(MouseEvent.CLICK, submitForAdd);
+					btnBox.addChild(submitBtn);
+				}
+				else
+				{
+					submitBtn.addEventListener(MouseEvent.CLICK, submitForEdit);
+					btnBox.addChild(submitBtn);
+				}
+				btnBox.addChild(closeBtn);
+				var rule:HRule=new HRule();
+				rule.percentWidth=80;
+				this.addChild(rule);
+				this.addChild(btnBox);
+			}
+			/**
+			 * 添加要素触发函数
+			 */ 
+			private function submitForAdd(e:Event):void
+			{
+				if(_attStruct==null)
+					return;
+				for(var i:int=0;i<_attStruct.FldName.length;i++)
+				{	
+					_newAttValues[i]=TextInput(HBox(this.getChildByName("hbox" + i)).getChildByName("fldvalue" + i)).text;				
+				}
+				var XMLStr:String="";
+				XMLStr=this.ogclayer.setFeatureStr(_featureID,_attStruct,_newAttValues,_targetGeo);	
+				this.ogclayer.insertFeature(this.ogclayer.layerName,XMLStr,onSubmitAdd);
+			}
+			/**
+			 * 编辑触发函数
+			 */ 
+			private function submitForEdit(e:Event):void
+			{
+				if(_attStruct==null)
+					return;
+				for(var i:int=0;i<_attStruct.FldName.length;i++)
+				{	
+					_newAttValues[i]=TextInput(HBox(this.getChildByName("hbox" + i)).getChildByName("fldvalue" + i)).text;				
+				}
+				var XMLStr:String="";
+				XMLStr=this.ogclayer.setFeatureStr(_featureID,_attStruct,_newAttValues);	
+				this.ogclayer.updateFeature(this.ogclayer.layerName,XMLStr,onSubmitEdit);      
+			}
+			/**
+			 * 添加要素信息回调函数
+			 */ 
+			private function onSubmitAdd(e:ResultEvent):void
+			{
+				this.imsmap.refresh();
+				Alert.show(this.ogclayer.onEditFeature(e), "提示");
+				
+			}
+			/**
+			 * 编辑要素信息回调函数
+			 */ 
+			private function onSubmitEdit(e:ResultEvent):void
+			{
+				this.currentDataViewer.updateRecord(_newAttValues);
+				Alert.show(this.ogclayer.onEditFeature(e), "提示");
+			}
+			/**
+			 * 添加点要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addPoint(e:Event):void
+			{
+				onAddFeature(ESFclsGeomType.Pnt);
+			}
+
+			/**
+			 * 添加线要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addLine(e:Event):void
+			{
+				onAddFeature(ESFclsGeomType.Lin);
+
+			}
+			/**
+			 * 添加区要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addPolygon(e:Event):void
+			{
+				onAddFeature(ESFclsGeomType.Reg);
+			}
+			/**
+			 * 添加要素回调函数
+			 */ 
+			private function onAddFeature(geoType:String):void
+			{
+				this.ogclayer=null;
+				if(this.ogcCatalog!=null&&this.ogcCatalog.lastActiveLayer!=null)
+					if(this.ogcCatalog.lastActiveNode.customTarget.state==4)
+					{
+						this.ogclayer=this.ogcCatalog.lastActiveLayer;
+					}
+				if(this.ogclayer==null)
+				{
+					Alert.show("未激活相关的OGC图层", "提示");
+					return;
+				}
+				var data:String = this.ogclayer.GeomType;
+				if (data == null || data == "Unknown")
+				{
+					Alert.show("获取当前图层几何类型失败", "提示");
+					return;
+				}
+				if (data != geoType)
+				{
+					Alert.show("当前图层不能添加该几何类型的要素", "提示");
+					return;
+				}
+				var obj:Object;
+				switch (geoType)
+				{
+					case ESFclsGeomType.Pnt:
+						obj = this.imsmap.graphicCanvas.getSelectedDot();
+						break;
+					case ESFclsGeomType.Lin:
+						obj = this.imsmap.graphicCanvas.getSelectedLine();
+						break;
+					case ESFclsGeomType.Reg:
+						obj = this.imsmap.graphicCanvas.getSelectedPolygon();
+						break;
+					case ESFclsGeomType.Unknown:
+						Alert.show("当前激活图层几何类型未知", "提示");
+						return;
+						break;
+				}
+				if (obj == null)
+					return;
+				this.setTargetFeatureGeo(obj);
+				this.getActiveLayerAttStruct();
+			}
+			/**
+			 * 获取激活图层的属性结构
+			 *
+			 */
+			private function getActiveLayerAttStruct():void
+			{
+				var curLayerAttStru:CAttStruct =this.ogclayer.LayerAttStruct;
+				if (curLayerAttStru != null)
+					this.setAttStruct(curLayerAttStru);
+				else
+				{
+					this.ogclayer.getFeatureAttStruct(this.ogclayer.layerName,this.getAttStructCallBack);
+				}
+			}
+			/**
+			 * 获取属性结果回调函数
+			 */ 
+			private function getAttStructCallBack(e:ResultEvent):void
+			{
+				var attStru:CAttStruct = this.ogclayer.onGetFeatureAttStruct(e);
+				this.setAttStruct(attStru);
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public function onClose(e:Event):void
+			{
+				super.close();
+			}
+		]]>
+	</mx:Script>
+	<mx:Text text="您可以通过右键单击查询结果窗口中的记录然后选择[编辑]菜单来编辑某一条记录，也可以通过鼠标在地图上添加点、线或者区要素。"
+			 height="146"
+			 width="221"/>
+	<mx:Button label="关闭"
+			   click="onClose(event)"/>
+</IMSWindow>

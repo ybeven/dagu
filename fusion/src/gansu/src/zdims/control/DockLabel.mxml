@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Box xmlns:mx="http://www.adobe.com/2006/mxml" implements="com.outsmart.dock.core.IDockLabelRenderer" 
+	backgroundColor="0x000000" backgroundAlpha="0.7" borderColor="0xFFFFFF" cornerRadius="4"
+	borderStyle="solid" showEffect="{showEffect()}" hideEffect="{hideEffect()}"
+	paddingLeft="1" paddingRight="1" paddingTop="1" paddingBottom="-1"
+>
+<mx:Label id="title" text="{_text}" color="0xFFFFFF" styleName="embeddedArial"/>
+	<mx:Style>
+		/* 
+		@font-face{
+			fontFamily:		Arial;
+			src:			local("Verdana");
+			fontStyle:		"normal";
+			fontWeight:		"normal";
+		} */
+
+		.embeddedArial {
+			fontFamily:		宋体;
+			fontSize:		12;
+		}
+		
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.effects.Effect;
+			import mx.effects.Fade;
+			import mx.core.UIComponent;
+			
+			[Bindable] private var _text:String;
+			[Bindable] private var _render:UIComponent;
+			
+			/**
+			 * The text of the label.
+			 */
+			public function get text():String { return this._text; }
+			public function set text(value:String):void { 
+				this._text = value; 
+				//title.text=value;
+			}
+			
+			/**
+			 * The show effect played on the label.
+			 */
+			private function showEffect():Effect {
+				var fade:Fade = new Fade();
+				fade.alphaTo = 1.0;
+				fade.duration = 500;
+				return fade;
+			}
+
+			/**
+			 * The hide effect played on the label.
+			 */			
+			private function hideEffect():Effect {
+				var fade:Fade = new Fade();
+				fade.alphaTo = 0.0;
+				fade.duration = 500;
+				return fade;
+			}
+		
+		]]>
+	</mx:Script>
+	
+	
+</mx:Box>

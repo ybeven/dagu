@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Marker xmlns="zdims.control.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="80" height="80" creationComplete="init1()">
+	<mx:Script>
+		<![CDATA[
+			import mx.messaging.AbstractConsumer;
+			import mx.events.CloseEvent;
+			import mx.controls.Image;
+			import flash.utils.Timer;
+			import flash.events.TimerEvent;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import zdims.event.IMSMapMoveEvent;
+			import zdims.util.IMSOperType;
+			
+			private var reticle:Image=new Image();
+			public var _markEdit:MarkerEdit;
+			public var toolBarControl:Toolbar;
+			private	var markTimer:Timer;
+			public var _copyLogic:Array;
+			public var _copyImageSouce:String;
+			
+			public function init1():void
+			{	
+				var logic:Point;
+				reticle.x=0;
+				reticle.y=0;
+				reticle.width=80;
+				reticle.height=80;
+				reticle.source="image/mark/marker2/image2/1.png";
+				this.addChildAt(reticle,0);
+				this.icon0.source="image/mark/marker2/image2/p1.png";
+				this.icon0.x=20;
+				this.icon0.y=20;
+				this.icon0.width=40;
+				this.icon0.height=40;				
+				this.setAssociate();
+				logic=this.imsmap.screenToLogic(this.imsmap.width/2,this.imsmap.height/2);
+                this.logicX=logic.x;
+                this.logicY=logic.y; 
+                this.updatePosition();
+                this.setflash();
+                this.icon0.addEventListener(MouseEvent.DOUBLE_CLICK,doubleClick);
+				if(this._markEdit!=null)
+				{
+					this._markEdit._markFlash=this;
+			 	  	this._markEdit._addOrEdit=true;
+			 	  	this._markEdit.Longitude.text=String(this.logicX);
+                  	this._markEdit.Latitude.text=String(this.logicY);
+			 	  	
+				} 				  
+			}
+			/**
+			*覆盖更新标注位置的函数
+			*/
+			public override function updatePosition(e:Event=null):void
+			{
+				if(e is IMSMapMoveEvent)
+				{
+					if(this.imsmap.operType==IMSOperType.Drag)
+					{
+						var xLen:int=this.imsmap.mouseMoveScrPnt.x - this.imsmap.mouseDownScrPnt.x;
+                    	var yLen:int=this.imsmap.mouseMoveScrPnt.y - this.imsmap.mouseDownScrPnt.y;
+                    	this.x =this.oldx+xLen;
+                        this.y = this.oldy+yLen;
+					}
+					return;
+				}
+				var coor:Point = this.imsmap.logicToScreen(logicX, logicY);
+
+				this.oldx=this.x = coor.x - this.width/2;
+				this.oldy=this.y = coor.y - this.height/2;
+				if (this.markerInfo != null)
+				{
+					this.markerInfo.y = this.y + this.height;
+					this.markerInfo.x = this.x + 20;
+				}
+			}
+			/**
+			 * 设置十字丝闪烁间隔
+			 */
+			  public function setflash():void
+              {
+              	if(this.imsmap!=null&&this.imsmap.contains(this))
+              		this.imsmap.setChildIndex(this,this.imsmap.getChildren().length-1);
+            	this.markTimer = new Timer( 500 , 0 );
+                this.markTimer.addEventListener( "timer" , startFlash );
+                this.markTimer.start();
+              }
+             /**
+             * 进行闪烁
+             */
+            public function startFlash( event:TimerEvent ):void
+            {
+                 if( this.reticle.visible)
+                 {
+                 	this.reticle.visible=false; 
+                 }
+                 else{ this.reticle.visible=true; } 
+             }
+              /**
+             * 停止闪烁
+             */
+             public function stopFlash():void
+             {
+             	if(this.imsmap!=null&&this.imsmap.contains(this))
+              		this.imsmap.setChildIndex(this,this.imsmap.layerLenth+1);
+             	this.markTimer.removeEventListener("timer",startFlash);
+             	this.markTimer.stop();
+             	this.reticle.visible=false;
+             }
+             public function setAssociate():void
+             {
+             	this.icon0.addEventListener(MouseEvent.MOUSE_OVER,mouseOverEvent);
+                this.icon0.addEventListener(MouseEvent.MOUSE_OUT,mouseOutEvent);
+                if(this._markEdit!=null)
+                {
+                	this._markEdit.preImage.addEventListener(FlexEvent.UPDATE_COMPLETE,updatesouce);
+					this._markEdit.Longitude.addEventListener(Event.CHANGE,updateLogicX);
+					this._markEdit.Latitude.addEventListener(Event.CHANGE,updateLogicY);
+                }
+             }
+             /**
+             * 停止对图标的编辑
+             */
+             public function  stopEdit():void
+             {
+             	this.stopFlash();
+             	this._markEdit.preImage.removeEventListener(FlexEvent.UPDATE_COMPLETE,updatesouce);
+				this._markEdit.Longitude.removeEventListener(Event.CHANGE,updateLogicX);
+				this._markEdit.Latitude.removeEventListener(Event.CHANGE,updateLogicY);
+				this.icon0.removeEventListener(MouseEvent.MOUSE_OVER,mouseOverEvent);
+                this.icon0.removeEventListener(MouseEvent.MOUSE_OUT,mouseOutEvent);
+				this.icon0.removeEventListener(MouseEvent.MOUSE_DOWN,locationStart);
+                this.icon0.removeEventListener(MouseEvent.MOUSE_UP,locationStop);
+                this.icon0.contextMenu=getContexMenu();
+                this._markEdit._markFlash=null;
+             }
+             /**
+             * 设置图标的右击选择菜单
+             */ 
+             private function getContexMenu():ContextMenu
+			{
+				
+				var menu:ContextMenu=new ContextMenu();
+				var delItem:ContextMenuItem=new ContextMenuItem("删除");
+				delItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,markDelete);
+				var editItem:ContextMenuItem=new ContextMenuItem("编辑");
+				editItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,markEdit);
+				menu.customItems.push(editItem,delItem);
+				menu.hideBuiltInItems();
+				return menu;
+			}
+			/**
+			 * 删除标注
+			 */ 
+			 public function markDelete(e:ContextMenuEvent):void
+			 {
+			 	Alert.show("确定要删除该标注？","提示",Alert.YES|Alert.NO,this.imsmap,function(e:CloseEvent):void{onAlert(e)},null,Alert.NO);
+			 	
+			 }
+			 public function onAlert(e:CloseEvent):void
+			 {
+			 	if(e.detail!=Alert.NO)
+			 	{
+			 		if(this.markerInfo.visible==true)
+			 		this.markerInfo.visible=false;
+			 	    this.imsmap.removeChild(this);
+			 	}
+			 }
+			 /**
+			 *对图标进行编辑
+			 */  
+			 public function markEdit(e:ContextMenuEvent):void
+			 {
+			 	if(this._markEdit._markFlash!=null)
+			 	Alert.show("请先完成上一个标注的添加或编辑","提示");
+			 	else
+			 	{
+			 	  this.copyMark();
+			 	  this._markEdit.visible=true;
+			 	  this._markEdit._markFlash=this;
+			 	  this.markerInfo.visible=false;
+             	  this.icon0.removeEventListener(MouseEvent.MOUSE_OVER,onMarkMouseOver);
+             	  this.icon0.removeEventListener(MouseEvent.CLICK,onMarkClick);
+			 	  this._markEdit.text_name.text=this.markerInfo.markName;
+			 	  this._markEdit.text_content.text=this.markerInfo.markContent;
+			 	  this._markEdit.text_imagesource.text=(this.markerInfo.markImageSource as String);
+			 	  this._markEdit.ImageSource=(this.icon0.source as String);
+			 	  this._markEdit.preImage.source=this.icon0.source;
+			 	  this._markEdit.Longitude.text= String(this.logicX);
+			 	  this._markEdit.Latitude.text= String(this.logicY);
+			 	  this._markEdit._addOrEdit=false;
+			 	  this.setflash(); 
+			 	  this._markEdit._markFlash=this;
+			 	  this.icon0.contextMenu=null;
+			 	  this.setAssociate();	
+			 	}
+			 }
+			 /**
+			 * 备份编辑前的图标信息
+			 */ 
+			 public function copyMark():void
+			 {
+			 	 this._copyLogic=new Array(2);
+			 	 this._copyLogic[0]=this.logicX;
+			 	 this._copyLogic[1]=this.logicY;
+			 	 this._copyImageSouce=(this.icon0.source as String); 
+			 }
+			 /**
+			 * 双击事件
+			 */ 
+             public function doubleClick(e:MouseEvent):void
+             {
+             	this.active(true);
+             }
+             /**
+             * 添加或编辑状态时鼠标移上图标---图标可以移动
+             * 非编辑状态时鼠标移上图标--可以显示标注信息
+             */  
+			 public function mouseOverEvent(e:MouseEvent):void
+             {
+             	if(this._markEdit._markFlash!=null)
+             	{
+             	  
+             	  this.icon0.addEventListener(MouseEvent.MOUSE_DOWN,locationStart);
+                  this.icon0.addEventListener(MouseEvent.MOUSE_UP,locationStop);
+                }
+                else
+                {
+                	this.icon0.addEventListener(MouseEvent.MOUSE_OVER,onMarkMouseOver);
+                	this.icon0.addEventListener(MouseEvent.CLICK,onMarkClick);
+                }
+             }
+              /**
+             * 鼠标移出时图标的状态
+             * 编辑状态时---图标不可移动
+             */  
+              public function mouseOutEvent(e:MouseEvent):void
+             {
+             	if(this._markEdit._markFlash!=null)
+             	this.icon0.removeEventListener(MouseEvent.MOUSE_MOVE,locationMove);
+             }
+             
+              /**
+             * 更新图标
+             */  
+			 public function updatesouce(e:Event):void
+			 {
+			 	  if(this._markEdit!=null)
+		          this.icon0.source=this._markEdit.ImageSource;					
+			 }
+			 /**
+             * 图标跟随鼠标移动
+             */  			
+             public function locationStart(e:MouseEvent):void
+             {
+             	e.stopPropagation();
+                  this.icon0.addEventListener(MouseEvent.MOUSE_MOVE,locationMove);
+                  this.imsmap.addEventListener(MouseEvent.MOUSE_MOVE,locationMove);
+                  this.icon0.addEventListener(MouseEvent.MOUSE_UP,locationStop);
+              }
+              /**
+             *  开始移动图标位置
+             */  
+              public function locationMove(e:MouseEvent):void
+              {
+              	if(this._markEdit!=null)
+              	{
+              		var logic0:Point; 
+                 	this.x=this.imsmap.mouseX-40;
+                 	this.y=this.imsmap.mouseY-this.height/2;
+                 	logic0=this.imsmap.screenToLogic(this.imsmap.mouseX,this.imsmap.mouseY);
+                 	this._markEdit.Longitude.text=String(logic0.x);
+		         	this._markEdit.Latitude.text=String(logic0.y);
+		         	this.logicX=logic0.x;
+		         	this.logicY=logic0.y;
+                 	this.icon0.addEventListener(MouseEvent.MOUSE_UP,locationStop);
+               	}
+              }
+              /**
+             * 停止移动图标位置
+             */  
+              public function locationStop(e:Event):void
+              {
+                 this.icon0.removeEventListener(MouseEvent.MOUSE_MOVE,locationMove);
+                 this.imsmap.removeEventListener(MouseEvent.MOUSE_MOVE,locationMove);
+              }
+              /**
+             * 图标位置根据标注编辑框的经度进行变化
+             */  
+             public function updateLogicX(e:Event):void
+             {
+             	var logic0X:Number;
+             	logic0X=Number(this._markEdit.Longitude.text)
+             	if(logic0X>=this.imsmap.xMinMap&&logic0X<=this.imsmap.xMaxMap)
+             	{
+             		var logic0Y:Number;
+             		var screen:Point;
+             		logic0Y=Number(this._markEdit.Latitude.text);
+             		screen=this.imsmap.logicToScreen(logic0X,logic0Y);
+             		this.x=screen.x-this.width/2;
+             		this.logicX=logic0X;
+             	}
+             	else
+              		{
+              	    	this._markEdit.Longitude.text=String(this.logicX);
+              		}
+             }
+             /**
+             * 图标位置根据标注编辑框的纬度进行变化
+             */  
+             public function updateLogicY(e:Event):void
+             {
+             	var logic0Y:Number;
+             	logic0Y=Number(this._markEdit.Latitude.text)
+             	if(logic0Y>=this.imsmap.yMinMap&&logic0Y<=this.imsmap.yMaxMap)
+             	{
+             		var logic0X:Number;
+             		var screen:Point;
+             		logic0X=Number(this._markEdit.Longitude.text);
+             		screen=this.imsmap.logicToScreen(logic0X,logic0Y);
+             		this.y=screen.y-this.height/2;
+             		this.logicY=logic0Y;
+             	}
+             	else
+              		{
+              	    	this._markEdit.Latitude.text=String(this.logicY);
+              		}
+             }
+			
+			
+		]]>
+	</mx:Script>
+</Marker>

@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--公交换乘窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IBusAnalyse" xmlns:mx="http://www.adobe.com/2006/mxml" width="582" height="416" layout="vertical" title="公交换乘" creationComplete="changeMap()">
+	<mx:HBox height="33">
+		<mx:Label text="起点关键字:"/>
+		<mx:TextInput id="start" text="鲁巷"  change="onTextChange(this.start.text,this.startPos)" width="118"/>
+		<mx:Label text="终点关键字:"/>
+		<mx:TextInput id="stop" text="武汉客运港" change="onTextChange(this.stop.text,this.stopPos)" width="118"/>
+	</mx:HBox>
+	<mx:HBox height="33">
+		<mx:Label text="选择起始点:"/>
+		<mx:ComboBox width="128" editable="true"  id="startPos" dataProvider="[鲁巷]"></mx:ComboBox>
+		<mx:Label text="选择终点:"/>
+		<mx:ComboBox id="stopPos" editable="true" width="129" dataProvider="[武汉客运港]"></mx:ComboBox>
+		<mx:Button id="btn_submit" label="搜索公交方案" width="109" click="onSubmit()"/>
+	</mx:HBox>
+	<mx:Panel id="busReslut" layout="vertical" headerColors="" width="553" height="296" title="公交路线查询结果" borderThicknessBottom="0" borderThicknessLeft="0" borderThicknessRight="0">
+	</mx:Panel>
+	<mx:Script>
+		<![CDATA[
+			import zdims.util.Node;
+			import zdims.util.BusCom;
+			import sjd.managers.ResizeManager;
+			import mx.events.FlexEvent;
+			import mx.core.UIComponent;
+			//import mx.automation.delegates.controls.ComboBaseAutomationImpl;
+			import mx.controls.Label;
+			import mx.containers.Box;
+			import mx.containers.Canvas;
+			import mx.containers.HBox;
+			import mx.controls.Text;
+			import mx.controls.LinkButton;
+			import mx.controls.Image;
+			import mx.controls.Alert;
+			
+			private var _selectComboBox:ComboBox;
+			private var _busCom:BusCom		= new BusCom();
+			private var _road:Array 		= new Array();
+			/**
+			 * 设置ip
+			 */ 
+			[Inspectable(category="MapGisIMS")]
+			public function set serverAddress(value:String):void
+			{
+				this._busCom.serverAddress = value;
+			}
+			/**
+			 * 获取ip
+			 */ 
+			public function get serverAddress():String
+			{
+				return this._busCom.serverAddress;
+			}
+			/**
+			 * 控件初始化
+			 */ 
+			public function changeMap():void
+			{
+				if(this.imsmap == null)
+				{
+					Alert.show("imsmap属性未赋值。","提示");
+					return;
+				}
+				this.addEventListener(FlexEvent.HIDE,resetData);
+				ResizeManager.enableResize(this,100);
+			}
+			/**
+			 * 清空数据
+			 */ 
+			public function resetData(e:Event):void
+			{
+				this.hideAllRoad();
+				this.busReslut.removeAllChildren();
+			}
+			/**
+			 * 搜索公交换乘方案
+			 */ 
+			public function onSubmit():void
+			{
+				_busCom.getBusChangeRlt(this.startPos.text,this.stopPos.text,onGetBusRlt);
+				this.busReslut.removeAllChildren();
+				clearAllRoad();
+			}
+			/**
+			 * 获取公交换乘方案回调函数
+			 */ 
+			public function onGetBusRlt(e:Event):void
+			{
+				var data:String = URLLoader(e.target).data;
+				SearchBusWay_CallBack(data);
+			}
+			/**
+			 * 对数据库进行模糊查询匹配的数据
+			 */ 
+			public function onTextChange(key:String,list:ComboBox):void
+			{
+				_selectComboBox = list;
+				this._busCom.getBusStopName(key,setStopList);
+			}
+			/**
+			 * 模糊查询的结果回调函数
+			 */ 
+			public function setStopList(e:Event):void
+			{
+				var data:String = URLLoader(e.target).data;
+				this._selectComboBox.dataProvider = data.split("$");
+			}
+			/**
+			 * 处理公交换乘的结果
+			 */ 
+			public function SearchBusWay_CallBack(response:String):void
+			{
+			    if (response == null || response == "")	{		
+					Alert.show("没有查到线路!")	;	
+					return;
+				}
+				
+				this._road = new Array();
+			    var busWayAnly:Array = new Array();   
+			    var divHtml:String = '' ;
+			    
+			    if(response.indexOf('$') != -1)
+			    {
+			       busWayAnly = response.split('$');  //方案数组
+			    }
+			    else
+			    {
+					busWayAnly[0] = response;
+			    }
+			    var lengthTmp:int = busWayAnly.length;
+				for(var i:int = 0 ; i < lengthTmp ; i++) {
+					var stopInfo:String				= "";
+					var busLin:String				= "";
+					var busStopName:String			= "";
+					var wayRecom:int				= 0;
+					var dtHtml:String				= "";      //dt元素
+					var ddHtml:String				= "";      //dd元素
+					var length:int					= 0;       //线路总长
+					var hcTimes:int					= 0;      //换乘次数
+					var curtail:String				= "";     //简略的换乘方案
+					var walkLength:Number			= 0;   //行走距离
+					var busStopsCount:int			= 0;//一个换乘方案的车站站点计数
+				    var tmpSpecialNodeArray:Array	= new Array();//暂时存放特殊站点的Array，结构为Node
+				    var tmpNormalNodeArray:Array	= new Array();//暂时存放普通站点的Array，结构为Node
+				    var stopsSeq:int				= -1;              //标识一个乘车方案的车站站点序列,0为起点序列
+				    var lstStopName:String			= "";          //记录最后一个站点的名称
+				    var lstStopX:Number				= -1;
+				    var lstStopY:Number				= -1;
+			        var isStartWalked:int			= -1;          //标识是否在起点车站步行
+			        var busTitleBox:HBox			= new HBox();
+					var busRoadLabel:Text			= new Text();
+					if(busWayAnly[i] == null)
+					{
+						continue;
+					}
+					var oneBusWay:Array = busWayAnly[i].split("#");//一个方案中的所有公交路线
+					
+					busRoadLabel = busTitleBox.addChild(busRoadLabel) as Text;
+					busTitleBox.addChild(getRoadShowButton(i));
+					this.busReslut.addChild(busTitleBox);
+					
+					var roadLenInfo:Text = new Text();
+					
+					roadLenInfo = this.busReslut.addChild(roadLenInfo) as Text;
+					
+					this._road[i] = new IMSRoad();
+					this._road[i].imsmap=this.imsmap;
+					
+			        for(var j:int = 0 ; j < oneBusWay.length - 1 ; j++) 
+			        {
+			        	if(oneBusWay[j] == null||oneBusWay[j] == "")
+			        	{
+			        		continue;
+			        	}
+						var oneBusName:String	= oneBusWay[j].split("|")[0]; //一条公交路线的名称
+						
+						if(oneBusWay[j].split("|")[1] == null || oneBusWay[j].split("|")[1] == "")
+						{
+							continue;
+						}
+						var oneStopInfo:String	= oneBusWay[j].split("|")[1].split("@")[0];//一条公交路线的所有车站名称及坐标数组
+						
+						if(oneStopInfo == null || oneStopInfo == "")
+						{
+							continue;
+						}
+						var tmpStopInfo:Array		= oneStopInfo.split(",");//存放站点名称坐标数组
+						
+						var oneBusLin:String		= oneBusWay[j].split("|")[1].split("@")[1];//一条公交线路的坐标
+			            var oneStartStop:String		= tmpStopInfo[0];
+						var oneStartStopX:Number	= tmpStopInfo[1];
+						var oneStartStopY:Number	= tmpStopInfo[2];
+						var oneLastStop:String		= tmpStopInfo[tmpStopInfo.length-3];//一条线路终止站点
+						var oneLastStopX:Number		= tmpStopInfo[tmpStopInfo.length-2];
+						var oneLastStopY:Number		= tmpStopInfo[tmpStopInfo.length-1];	 	
+						stopInfo	+= oneStopInfo + "@";//一套方案中的所有车站信息
+						wayRecom	= (oneStopInfo.split(",").length/3) - 1;//一条线路经过的车站数
+						busLin += oneBusLin + ",";
+						var fx = checkdirction(oneStartStopX,oneStartStopY,oneLastStopX,oneLastStopY);
+						if(oneBusName == "" || oneBusName == undefined) 
+						{
+						     if(j == 0) 
+						     {   //起点车站需要步行
+						     	var walkBox:HBox = new HBox();
+						  	    isStartWalked = 1;
+						  	    stopsSeq++;
+						  	    tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,0)); //起点车站需要步行 只标识其为起点
+						  	    IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/walk.gif"); 
+							    walkLength = parseFloat(getLength(oneBusLin).toFixed(1));
+							    walkBox.addChild(getImage("image/bus/walk.gif"));
+								walkBox.addChild(getLinkButton(oneStartStop,oneStartStopX,oneStartStopY));
+								walkBox.addChild(getHtmlText('出发往<font color="red">' + fx + '</font>方向行走约<font color="red">' + walkLength + '</font>米'));
+							    if(oneStartStop == oneLastStop)
+							    	walkBox.addChild(getHtmlText('至附近同名站点'));
+			                    else
+			                    	walkBox.addChild(getHtmlText('至'));
+			                    walkBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+			                    this.busReslut.addChild(walkBox);
+						     }  
+						     else if (j == oneBusWay.length-2)  //终点车站需要步行
+						     { 
+			                     stopsSeq++;
+			                     var endWalkBox:HBox = new HBox();
+			                     tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,3));
+			                     IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/walk.gif");			
+			                     walkLength = parseFloat(getLength(oneBusLin).toFixed(1));
+			                     endWalkBox.addChild(getImage("image/bus/walk.gif"));
+			                     endWalkBox.addChild(getHtmlText('往' + fx + '方向行走约<font color="red">' + walkLength + '</font>米至'));
+			                     endWalkBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+			                     this.busReslut.addChild(endWalkBox);
+						     }
+						     else  
+						     { //换乘车站间需要步行
+								stopsSeq++;
+			                  	var shiftBox:HBox = new HBox();
+			                 	tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,3));   
+			                  	IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/walk.gif");           
+							   	walkLength = parseFloat(getLength(oneBusLin).toFixed(1));
+							  	shiftBox.addChild(getImage("image/bus/walk.gif"));
+						     	shiftBox.addChild(getHtmlText("从"));
+		                     	shiftBox.addChild(getLinkButton(oneStartStop,oneStartStopX,oneStartStopY));
+							   	if(oneStartStop==oneLastStop)
+							  	{
+			                     	shiftBox.addChild(getHtmlText('出发往'+fx+'方向行走约<font color="#ff0000">'+walkLength+'</font>米至附近同名站点'));
+					      		}
+						  		else{
+			                 		shiftBox.addChild(getHtmlText('出发往'+fx+'方向行走约<font color="#ff0000">'+walkLength+'</font>米至'));
+					    		}
+					   			shiftBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+		                 		this.busReslut.addChild(shiftBox);
+						     }
+						 }
+						 else if(j==0)
+						 {
+						     hcTimes++;
+						     curtail += oneBusName.split('(')[0]+"路";
+						     var firstBusBox:HBox = new HBox();
+							 firstBusBox.addChild(getImage("image/bus/qidian.gif"));
+					         stopsSeq++;
+					         tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,0)); //标识为起点
+					         IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/qidian.gif");
+							 firstBusBox.addChild(getLinkButton(oneStartStop,oneStartStopX,oneStartStopY)) as LinkButton;
+							 firstBusBox.addChild(getHtmlText('乘 <font color="#ff0000">' + oneBusName + '</font> 经 <font color="#ff0000">' + wayRecom + '</font> 个站点'));
+					         for(var k = 3;k < tmpStopInfo.length - 3;k += 3)
+					         {
+			                    stopsSeq++;
+			                    tmpNormalNodeArray.push(new Node(tmpStopInfo[k],tmpStopInfo[k + 1],tmpStopInfo[k + 2],stopsSeq,2));
+			                    IMSRoad(this._road[i]).addNode(tmpStopInfo[k],tmpStopInfo[k + 1],tmpStopInfo[k + 2],stopsSeq,"image/bus/stop.gif");
+					         }
+							 firstBusBox.addChild(getHtmlText('在'));
+							 firstBusBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+							 firstBusBox.addChild(getHtmlText('下车'));
+							 this.busReslut.addChild(firstBusBox);
+						 } 
+						 else 
+						 {
+					         hcTimes++;	
+					         var busBox:HBox = new HBox();
+						     if (isStartWalked == 1) 
+							 {
+								 isStartWalked = -1;
+								 stopsSeq++;
+						         tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,1)); //起点车站需要步行 只标识其为乘车点
+						         IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/bus.gif");
+								 busBox.addChild(getImage("image/bus/bus.gif"));
+							 	 busBox.addChild(getHtmlText('<p> 乘 <font color="#ff0000">'+oneBusName+'</font> 经 <font color="#ff0000">' + wayRecom + '</font> 个站点'));
+						         for(var k=3;k<tmpStopInfo.length-3;k+=3)  
+						         {
+					                stopsSeq++;
+			                        tmpNormalNodeArray.push(new Node(tmpStopInfo[k],tmpStopInfo[k+1],tmpStopInfo[k+2],stopsSeq,2));
+			                        IMSRoad(this._road[i]).addNode(tmpStopInfo[k],tmpStopInfo[k+1],tmpStopInfo[k+2],stopsSeq,"image/bus/stop.gif");
+					             }
+								 busBox.addChild(getHtmlText('在'));
+								 busBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+								 busBox.addChild(getHtmlText('下车'));
+								 curtail += oneBusName.split('(')[0]+"路";
+							}
+							else  
+							{   
+								busBox.addChild(getImage("image/bus/shift.gif"));                          //换乘
+								stopsSeq++;
+						    	tmpSpecialNodeArray.push(new Node(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,4)); //标识为换乘点
+						 		IMSRoad(this._road[i]).addNode(tmpStopInfo[0],tmpStopInfo[1],tmpStopInfo[2],stopsSeq,"image/bus/shift.gif");
+								busBox.addChild(getHtmlText('<p> 换乘 <font color="#0000ff">'+oneBusName+'</font> 经 <font color="#ff0000">' + wayRecom + '</font> 个站点'));
+						     	for(var k = 3;k < tmpStopInfo.length - 3;k += 3) 
+						     	{
+			                         stopsSeq++;
+			                         tmpNormalNodeArray.push(new Node(tmpStopInfo[k],tmpStopInfo[k+1],tmpStopInfo[k+2],stopsSeq,2)); 
+			                         IMSRoad(this._road[i]).addNode(tmpStopInfo[k],tmpStopInfo[k+1],tmpStopInfo[k+2],stopsSeq,"image/bus/stop.gif");                       
+					      		}
+								busBox.addChild(getHtmlText('在'));
+								busBox.addChild(getLinkButton(oneLastStop,oneLastStopX,oneLastStopY));
+								busBox.addChild(getHtmlText('下车'));
+								curtail += ' 转 '+ oneBusName.split('(')[0]+"路";
+							}		
+							this.busReslut.addChild(busBox);							
+						}
+						var tmpIndex = tmpStopInfo.length - 1;
+						lstStopName = tmpStopInfo[tmpIndex - 2];
+						lstStopX = tmpStopInfo[tmpIndex - 1];
+						lstStopY = tmpStopInfo[tmpIndex];
+					}
+					stopsSeq++;		
+			     	tmpSpecialNodeArray.push(new Node(lstStopName,lstStopX,lstStopY,stopsSeq,5)); //标识终点车站
+			      	IMSRoad(this._road[i]).addNode(lstStopName,lstStopX,lstStopY,stopsSeq,"image/bus/zhongdian.gif");
+
+					IMSRoad(this._road[i])._roadCoorArr = busLin;
+					var busInfo:String=hcTimes == 1 ? "[直达]" : ('[换乘' + (hcTimes - 1) + '次]');
+					busRoadLabel.htmlText = '<font size="14px" color="#000000"><b>' + (i + 1).toString() + '. ' + curtail + busInfo + '</b></font>';
+					roadLenInfo.htmlText = '全程约 <font color="#ff0000">' + (getLength(busLin)/1000).toFixed(2) + '</font> 公里'
+					if (hcTimes == 1) 
+					{
+						dtHtml	= '<dt><table><tr><td>' + ( i + 1 ) + '.<a id=line' + i + ' href="javascript:showDetail(' + busWayAnly.length + ',' + i + ');">' + curtail + '（显示）</a></td><td align = right><span style=""><font color=red text-align=right>[直达]</font></span></td></tr></table>' + ddHtml;
+					}
+					else
+						dtHtml	= '<dt>'+(i+1)+'.<a id=line' + i + ' href="javascript:showDetail(' + busWayAnly.length+',' + i + ');">' + curtail + '（显示）</a><span><font color=red>[换乘' + (hcTimes-1) + '次]</font></span>' + ddHtml;
+					dtHtml		+= '<p style="border-top: #ccc 1px solid; width: 180px; margin-left: 26px;text-align: center">';
+					dtHtml		+= '<img style="CURSOR:hand" alt="开始播放" id="Btn_GO' + i + '" src="image/play.jpg" onclick=carmove(' + i + ')>&nbsp;<img style="CURSOR:hand" id="Btn_STOP' + i + '" alt="停止播放" src="image/stop.jpg" onclick="carstop(' + i + ')">';
+					dtHtml		+= '&nbsp;<input id="' + i +'_ck" type="checkbox" onclick="checkchange(' + i + ')"/><font color=blue>显示所有站点</font></p></div>';
+					divHtml	+= dtHtml;
+				}
+				showRoad(0);
+				divHtml	+= '</dl>'; 
+			}
+			/**
+			 * 根据坐标判断方向
+			 */ 
+			function checkdirction(sx:Number,sy:Number,ex:Number,ey:Number):String
+			{
+				var dir = "";
+				if(ex > sx)
+				    dir += "东";
+				if(ex < sx)
+				    dir += "西";
+				if(ey > sy)
+				    dir += "北";
+				if(ey < sy)
+				    dir += "南";
+				return dir;    
+			}
+			 //str线路坐标串，以逗号隔开(x1,y1,x2,y2,x3,y3...........)
+			 /**
+			 * 计算线路全程长度
+			 */ 
+			function getLength(str:String):Number {
+				var length:Number = 0;
+				if(str == null||str == "")
+				{
+					return 0;
+				}
+				var coordinateXY = str.split(',');
+				for(var k:int = 0; k < coordinateXY.length; k += 2) 
+				{
+					if (k + 3 < coordinateXY.length) 
+					{
+						var x1:Number = coordinateXY[k];
+						var y1:Number = coordinateXY[k + 1];
+						var x2:Number = coordinateXY[k + 2];
+						var y2:Number = coordinateXY[k + 3];
+						length += Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
+					}		
+				}
+				return length*111000;
+			}
+			/**
+			 * 对换乘的公交站点定位
+			 */ 
+			private function getLinkButton(buttonLabel:String,linkx:Number,linky:Number):LinkButton
+			{
+				var busLink:LinkButton = new LinkButton();
+				
+				busLink.setStyle("paddingLeft",0);
+				busLink.setStyle("paddingRight",0);
+				busLink.label = buttonLabel;
+				busLink.addEventListener(MouseEvent.CLICK,function(e:Event):void{location(linkx,linky);});
+				return busLink;
+			}
+			/**
+			 * 设置显示公交线路按钮
+			 */ 
+			private function getRoadShowButton(roadIndex:int):LinkButton
+			{
+				var busLink:LinkButton = new LinkButton();
+				
+				busLink.label = "显示";
+				busLink.addEventListener(MouseEvent.CLICK,function(e:Event):void{showRoad(roadIndex);});
+				return busLink;
+			}
+			/**
+			 * 设置换乘的图标
+			 */ 
+			private function getImage(src:String):Image
+			{
+				var img:Image = new Image();
+				
+				img.source = src;
+				img.width = 24;
+				img.height = 24;
+				return img;
+			}
+			/**
+			 * 获取文本值
+			 */ 
+			private function getHtmlText(html:String):Text
+			{
+				var text:Text = new Text();
+				
+				text.htmlText = html;
+				return text;
+			}
+			/**
+			 * 定位
+			 */ 
+			public function location(x:Number,y:Number):void
+			{
+		   		this.imsmap.panTo(x,y);
+			}
+		   /**
+			 * 绘制公交换乘路线
+			 */ 
+		 	public function showRoad(roadIndex:int):void
+		 	{
+		   		var roadNum:int = this._road.length;
+		   		for(var i:int = 0;i < roadNum;i++)
+		   		{
+		   			if(roadIndex == i)
+		   				IMSRoad(this._road[i]).drawRoad();
+		   			else
+		   				IMSRoad(this._road[i]).clear();
+		   		}
+			}
+		    /**
+			 * 清除路线
+			 */ 
+			public function clearAllRoad():void
+			{
+				for(var i:int=0;i<this._road.length;i++)
+				{
+		   			IMSRoad(this._road[i]).dispose();
+		   			if(this.imsmap.contains(this._road[i]))
+		   				this.imsmap.removeChild(this._road[i]);
+		  		}
+		  		this._road=new Array();
+		   }
+		   public function hideAllRoad():void
+		   {
+		   		var roadNum:int = this._road.length;
+		   		for(var i:int = 0;i < roadNum;i++)
+		   		{
+		   			IMSRoad(this._road[i]).clear();
+		   		}
+		   }
+		]]>
+	</mx:Script>
+</IMSWindow>

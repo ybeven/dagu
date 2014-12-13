@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<!-- 条件查询窗口 -->
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IConditionInput"  xmlns:mx="http://www.adobe.com/2006/mxml"  layout="absolute" x="200" y="200"  width="320" height="354" title="输入查询条件" fontSize="12" borderThicknessLeft="2" borderThicknessRight="2" creationComplete="init()">
+	<mx:Button x="10" y="81" label="+" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="81" label="-" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="81" label="*" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="81" label="/" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="103" label="&gt;=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="103" label="&lt;=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="103" label="&gt;" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="103" label="&lt;" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="125" label="=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="125" label="!=" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="125" label="and" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="125" label="or" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="10" y="147" label="not" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="84" y="147" label="like" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="158" y="147" label="is null" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:Button x="232" y="147" label="%" width="74" height="22" click="onBtnClick(event)"/>
+	<mx:TextArea id="conditionText" x="10" y="209" width="296" height="48"/>
+	<mx:Button x="39" y="278" label="查询" width="74" height="22" click="submit()"/>
+	<mx:Button x="203" y="278" label="关闭" width="74" height="22" click="close()"/>
+	<mx:ComboBox x="97" y="50" width="209" id="fieldList" change="onSelectField()"></mx:ComboBox>
+	<mx:Label x="10" y="53" text="选择属性字段："/>
+	<mx:Button x="121" y="278" label="清空" width="74" height="22" click="clearText()"/>
+	<mx:Label x="10" y="185" text="请输入查询条件："/>
+	<mx:Script>
+		<![CDATA[
+			import zdims.draw.IMSCanvas;
+			import zdims.map.VectorMapDoc;
+			import zdims.map.IMSMap;
+			import Mapgis7.WebService.BasLib.*;
+			import mx.events.FlexEvent;
+			import mx.events.DragEvent;
+			import Mapgis7.WebService.BasLib.IWebGeometry;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.ESelectionType;
+			import mx.controls.Button;
+			
+			private var _geoObj:Object;
+			private var _selectType:String = ESelectionType.Condition;
+			private var _isMouseDown:Boolean = false;
+			private var _mapDocDataViewer:MapDocDataViewer;
+			
+			[Inspectable(category="MapGisIMS")]
+			public function set mapDocDataViewer(viewer:MapDocDataViewer):void
+			{
+				this._mapDocDataViewer=viewer;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get mapDocDataViewer():MapDocDataViewer
+			{
+				return this._mapDocDataViewer;
+			}
+			
+			/**
+			 * 属性条件查询处理事件
+			 *
+			 */
+			public function selectByAttCondition():void
+			{
+				this.setQueryGeoObj(null);
+				this.setSelectType(ESelectionType.Condition);
+				this.visible=true;
+			}
+			
+			/**
+			 * 点击条件查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPointAndCon(e:Event):void
+			{
+				this.setQueryGeoObj(this.imsmap.graphicCanvas.getSelectedDot());
+				this.setSelectType(ESelectionType.Both);
+				this.visible=true;
+			}
+			
+			/**
+			 * 线条件查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByLineAndCon(e:Event):void
+			{
+				this.setQueryGeoObj(this.imsmap.graphicCanvas.getSelectedLine());
+				this.setSelectType(ESelectionType.Both);
+				this.visible=true;
+			}
+			/**
+			 * 多边形+条件组合查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPolygonAndCon(e:Event):void
+			{
+				this.setQueryGeoObj(this.imsmap.graphicCanvas.getSelectedPolygon());
+				this.setSelectType(ESelectionType.Both);
+				this.visible=true;
+			}
+			/**
+			 * 矩形+条件组合查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByRectAndCon(e:Event):void
+			{
+				this.setQueryGeoObj(this.imsmap.graphicCanvas.getSelectedRect());
+				this.setSelectType(ESelectionType.Both);
+				this.visible=true;
+			}
+			/**
+			 * 圆范围+条件组合查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByCircleAndCon(e:Event):void
+			{
+				this.setQueryGeoObj(this.imsmap.graphicCanvas.getSelectedCircle());
+				this.setSelectType(ESelectionType.Both);
+				this.visible=true;
+			}
+			/**
+			 * 设置查询条件
+			 */ 
+			public function setQueryGeoObj(value:Object):void
+			{
+				this._geoObj = value;
+			}
+			/**
+			 * 设置查询类型
+			 */ 
+			public function setSelectType(value:String):void
+			{
+				this._selectType = value;
+			}
+			
+			/**
+			 * 清除条件文本
+			 */ 
+			public function clearText():void
+			{
+				this.conditionText.text = "";
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public override function close():void
+			{
+				super.close();
+				this.layerList.dataProvider = null;
+				this.layerList.addEventListener(MouseEvent.MOUSE_OVER,getLayer);
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				this.layerList.addEventListener(MouseEvent.MOUSE_OVER,getLayer);
+			}
+			/**
+			 * 设置条件文本
+			 */ 
+			public function onBtnClick(e:Event):void
+			{
+				var btn:Button = Button(e.target);
+				this.conditionText.text += " " + btn.label;
+				this.conditionText.setFocus();
+			}
+			/**
+			 * 获取图层名称
+			 */ 
+			public function getLayer(e:Event):void
+			{
+				if(this.imsmap.activeMapDoc != null && (this.layerList.dataProvider as Array)==null)
+				{
+					var mapdoc:VectorMapDoc = this.imsmap.activeMapDoc;
+					if(mapdoc.loadMapResult == null || mapdoc.loadMapResult.LayerAccessInfo.LayerAccessInfo.length == 0) return;
+					
+					var layerNum:int = mapdoc.loadMapResult.LayerCount;
+					var layerInfoArr:Array = mapdoc.loadMapResult.LayerAccessInfo.LayerAccessInfo;
+					
+					var layerName:Array = new Array();
+					
+					for(var i:int = 0;i < layerNum;i++)
+					{
+						var layerInfo:CLayerInfo = CLayerInfo(CLayerAccessInfo(layerInfoArr[i]).LayerInfoList[0]);
+						layerName[i] = layerInfo.LayerDataName;
+					} 
+					this.layerList.dataProvider = layerName;
+					this.layerList.removeEventListener(MouseEvent.MOUSE_OVER,getLayer);
+					this.layerList.selectedIndex = this.imsmap.activeMapDoc.activeLayerIndex;
+					changeLayer();
+				}
+			}
+			/**
+			 * 查询触发函数
+			 */ 
+			public function submit():void
+			{
+				if(this.conditionText.text.replace(" ","").length == 0)
+				{
+					Alert.show("请输入查询条件。","提示");
+					return;
+				}
+				if(this._selectType != ESelectionType.Condition&&this._geoObj == null)
+				{
+					Alert.show("当前查询需要空间范围对象，请选取要查询的空间范围。","提示");
+					return;
+				}
+				var mapsel:CMapSelectParam = new CMapSelectParam();
+		        var websel:CWebSelectParam = new CWebSelectParam();
+		        
+		        websel.CompareRectOnly = this.imsmap.activeMapDoc.compareRectOnly;
+		        websel.Geometry = this._geoObj;
+		        if(this._geoObj != null) 
+		        {
+       				websel.GeomType=IWebGeometry(this._geoObj).GetGeomType();	
+		        }
+		        websel.MustInside = this.imsmap.activeMapDoc.mustInside;
+		        websel.NearDistance = this.imsmap.activeMapDoc.nearDistanse;
+		        websel.SelectionType = this._selectType;
+		        websel.WhereClause = this.conditionText.text;
+		        mapsel.SelectParam = websel;
+		        mapsel.PageCount = 0;
+		        if(this.mapDocDataViewer != null)
+		        {
+		        	this.mapDocDataViewer.setLastSelectParam(mapsel);
+		        }
+				this.imsmap.activeMapDoc.select(mapsel,this.selectCallback);
+			}
+			/**
+			 * 查询结果处理事件 
+			 * @param e
+			 * 
+			 */		
+			public function selectCallback(e:Event):void
+			{
+				if(this.mapDocDataViewer == null) 
+				{
+					Alert.show("IMSMAP控件没有关联的数据显示控件！");
+					return;
+				}
+				this.mapDocDataViewer.showResult(this.imsmap.activeMapDoc.onSelect(e));
+			}
+			/**
+			 * 改变图层触发函数，获取图层属性结构
+			 */ 
+			public function changeLayer():void
+			{
+				var index:int = this.layerList.selectedIndex;
+				if(index < 0) return;
+				var curLayerAttStru:CAttStruct = this.imsmap.activeMapDoc.loadMapResult.layerAttStruct[index] as CAttStruct;
+				if(curLayerAttStru != null)
+				{
+					this.fieldList.dataProvider = curLayerAttStru.FldName;
+				}
+				else
+				{
+					var obj:CMapIndex = new CMapIndex();
+					var openmap:COpenMap = new COpenMap();
+					openmap.MapName[0] = this.imsmap.activeMapDoc.mapDocName;
+					obj.MapName = openmap;
+					obj.MapDocIndex = 0;
+					obj.LayerIndex = this.layerList.selectedIndex;
+					this.imsmap.activeMapDoc.getMapLayerAttStruct(obj,getAttStructCallBack);
+				}
+			}
+			/**
+			 * 获取属性结构回调函数
+			 */ 
+			private function getAttStructCallBack(e:Event):void
+			{
+				var attStru:CAttStruct = this.imsmap.activeMapDoc.onGetMapLayerAttStruct(e);
+				this.imsmap.activeMapDoc.loadMapResult.layerAttStruct[this.layerList.selectedIndex] = attStru;
+				this.fieldList.dataProvider = attStru.FldName;
+			}
+			/**
+			 * 设置查询条件
+			 */ 
+			public function onSelectField():void
+			{
+				this.conditionText.text += this.fieldList.selectedLabel;
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:ComboBox x="97" y="18" width="209" id="layerList" change="changeLayer()"></mx:ComboBox>
+	<mx:Label x="10" y="21" text="选择图层："/>
+</IMSWindow>

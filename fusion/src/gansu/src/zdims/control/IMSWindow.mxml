@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--最基本的窗口容器，提供拖拽及关闭的功能-->
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+				layout="absolute"
+				headerColors="{['#D6EAF2','#D6EAF2']}"
+				width="580"
+				height="478"
+				title="IMS窗口"
+				fontSize="12"  
+				borderThicknessLeft="2"
+				borderThicknessRight="2"
+				close="close()"
+				showCloseButton="true"
+				creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			
+			import zdims.map.IMSMap;
+			import zdims.util.IMSOperType;
+			/**
+			 * 属性：地图容器
+			 */
+			private var _map:IMSMap;
+
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				this._map = m;
+			}
+			/**
+			 * 给地图容器赋值
+			 */
+			public function get imsmap():IMSMap
+			{
+				if(_map==null)
+					imsmap=this.parent as IMSMap;
+				return this._map;
+			}
+			/**
+			 * 窗口初始化 
+			 */
+			public function init():void
+			{
+				this.isPopUp = true;
+				this.addEventListener(MouseEvent.MOUSE_DOWN, activeControl);
+				this.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+				this.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+				this.addEventListener(MouseEvent.MOUSE_WHEEL, onMouseWheel);
+				this.addEventListener(MouseEvent.DOUBLE_CLICK,onDoubleClick);
+				this.addEventListener(MouseEvent.CLICK,onClick1);
+				this.addEventListener(FlexEvent.SHOW, activeControl);
+				this.addEventListener(MouseEvent.MOUSE_OUT, onMouseOut);
+				this.addEventListener(Event.ENTER_FRAME,onMouseOut);
+				this.titleBar.toolTip="您可以通过鼠标拖拽标题栏来改变窗口位置";
+				this.alpha=1;
+				this.doubleClickEnabled=true;
+//				var arr:Array=this.getChildren();
+//				for(var i:int=0;i<arr.length;i++)
+//				{
+//					if(arr[i] is  DisplayObject)
+//						DisplayObject(arr[i]).addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+//				}
+			}
+			protected function onClick1(e:MouseEvent):void
+			{
+				e.stopPropagation();
+			}
+			protected function onMouseDown(e:MouseEvent):void
+			{
+				e.stopPropagation();
+//				if(imsmap!=null)
+//					imsmap.operType=IMSOperType.Drag;
+			}
+			protected function onMouseUp(e:MouseEvent):void
+			{
+				if(imsmap!=null&&imsmap.operType!=IMSOperType.Drag&&imsmap.operType!=IMSOperType.ZoomIn&&imsmap.operType!=IMSOperType.ZoomOut)
+					e.stopPropagation();
+			}
+			protected function onMouseWheel(e:MouseEvent):void
+			{
+				e.stopPropagation();
+			}
+			protected function onDoubleClick(e:MouseEvent):void
+			{
+				e.stopPropagation();
+			}
+			/**
+			 * 鼠标移除触发事件
+			 */
+			public function onMouseOut(e:Event):void
+			{
+				this.x = this.x < 0 ? 0 : this.x;
+				this.y = this.y < 0 ? 0 : this.y;
+				if (this.parent != null)
+				{
+					if (this.x > this.parent.width-30)
+						this.x=this.parent.width - 30;
+					if (this.y > this.parent.height-30)
+						this.y=this.parent.height - 30;
+				}
+			}
+			/**
+			 * 设置窗口置顶
+			 */
+			public function activeControl(e:Event):void
+			{
+				if(e!=null)
+				{
+					e.stopPropagation();
+				}
+				if(this.parent!=null&&this.parent.getChildIndex(this)<this.parent.numChildren - 1)
+					this.parent.setChildIndex(this, this.parent.numChildren - 1);
+			}
+			/**
+			 * 关闭窗口
+			 */
+			public function close():void
+			{
+				this.visible = false;
+			}
+		]]>
+	</mx:Script>
+
+</mx:TitleWindow>

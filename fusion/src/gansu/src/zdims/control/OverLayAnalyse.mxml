@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 叠加分析窗口 -->
+<IMSWindow xmlns="zdims.control.*"
+		   implements="zdims.interfaces.control.IOverLayAnalyse"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="298"
+		   height="550"
+		   title="叠加分析窗口"
+		   creationComplete="init()">
+	<mx:ComboBox id="svrList"
+				 x="84"
+				 y="44"
+				 width="142">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="44"
+			  text="数据源:"/>
+	<mx:Label x="10"
+			  y="115"
+			  text="用户名:"/>
+	<mx:Label x="10"
+			  y="147"
+			  text="密码:"/>
+	<mx:TextInput x="84"
+				  y="113"
+				  width="142"
+				  id="username"/>
+	<mx:TextInput x="84"
+				  y="145"
+				  width="142"
+				  id="password"/>
+	<mx:Button x="234"
+			   y="145"
+			   label="连接"
+			   click="connect()"/>
+	<mx:ComboBox x="84"
+				 y="237"
+				 width="142"
+				 dataProvider="['简单要素类','要素类']"
+				 id="dataType">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="240"
+			  text="图层类型:"/>
+	<mx:Label x="10"
+			  y="175"
+			  text="数据库名:"/>
+	<mx:ComboBox x="84"
+				 y="175"
+				 width="142"
+				 id="gdbName">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="272"
+			  text="第一个图层:"/>
+	<mx:ComboBox x="84"
+				 y="269"
+				 width="142"
+				 id="layer1"
+				 rowCount="10">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="303"
+			  text="第二个图层:"/>
+	<mx:ComboBox x="84"
+				 y="300"
+				 width="142"
+				 id="layer2"
+				 rowCount="10">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="368"
+			  text="叠加类型:"/>
+	<mx:Label x="10"
+			  y="430"
+			  text="平差半径:"/>
+	<mx:TextInput x="100"
+				  y="428"
+				  width="142"
+				  text="0.0001"
+				  id="radius"/>
+	<mx:Button id="button_submit"
+			   x="86.5"
+			   y="482"
+			   label="提交"
+			   click="submit()"/>
+	<mx:Button x="158.5"
+			   y="482"
+			   label="取消"
+			   click="cancel()"/>
+	<mx:Label x="10"
+			  y="10"
+			  text="第一步:选择数据源"
+			  color="#0AA3F3"/>
+	<mx:Label x="10"
+			  y="85"
+			  text="第二步:连接数据源获取数据库列表"
+			  color="#0AA3F3"/>
+	<mx:Label x="10"
+			  y="209"
+			  text="第三步:选择叠加图层"
+			  color="#0AA3F3"/>
+	<mx:Label x="10"
+			  y="339"
+			  text="第四步:设置分析参数"
+			  color="#0AA3F3"/>
+	<mx:Button x="234"
+			   y="45"
+			   label="获取"
+			   click="getGdbSvrList()"/>
+	<mx:Script>
+		<![CDATA[
+			import zdims.interfaces.IVector;
+			import zdims.control.layer.LayerDataViewer;
+			import zdims.util.SpacialAnalyse;
+			import sjd.managers.ResizeManager;
+			import mx.events.CloseEvent;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.CGdbInfo;
+			import Mapgis7.WebService.BasLib.COverlayByLayer;
+			import Mapgis7.WebService.BasLib.EXClsType;
+			import Mapgis7.WebService.BasLib.CGetXClsList;
+			import Mapgis7.WebService.BasLib.CGetGdbList;
+			import Mapgis7.WebService.BasLib.CGetListName;
+			
+			private var clipTimer:Timer;
+			private var _spatial:SpacialAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var layerDataViewer:LayerDataViewer;
+			/**
+			 * 矢量地图对象
+			 */ 
+			public var vectorObj:IVector;
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				ResizeManager.enableResize(this, 100);
+			}
+			/**
+			 * 获取数据源列表
+			 */ 
+			private function getGdbSvrList():void
+			{
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.getGdbServerList(onGetSvrList);
+			}
+			/**
+			 * 返回数据源列表
+			 */ 
+			private function onGetSvrList(e:Event):void
+			{
+				var svr:CGetListName = this._spatial.onGetGdbServerList(e);
+				this.svrList.dataProvider = svr.Name;
+			}
+			/**
+			 * 连接数据源，获取gdb列表
+			 */ 
+			private function connect():void
+			{
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				var obj:CGetGdbList = new CGetGdbList();
+				obj.GdbSvrName = this.svrList.selectedLabel;
+				obj.GdbSvrUser = this.username.text;
+				obj.GdbSvrPwds = this.password.text;
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.getGdbList(obj, onConnect);
+			}
+			/**
+			 * 返回gdb列表
+			 */ 
+			private function onConnect(e:Event):void
+			{
+				var svr:CGetListName = this._spatial.onGetGdbList(e);
+				this.gdbName.dataProvider = svr.Name;
+			}
+			/**
+			 * 获取图层列表
+			 */ 
+			private function getLayerList():void
+			{
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				var obj:CGetXClsList = new CGetXClsList();
+				obj.GdbSvrName = this.svrList.selectedLabel;
+				obj.GdbSvrUser = this.username.text;
+				obj.GdbSvrPwds = this.password.text;
+				obj.GdbName = this.gdbName.selectedLabel;
+				obj.XclsType = dataType.selectedLabel == "简单要素类" ? EXClsType.SFeatureCls : EXClsType.FeatureCls;
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.getXClsList(obj, onGetLayer);
+			}
+			/**
+			 * 返回图层列表
+			 */ 
+			private function onGetLayer(e:Event):void
+			{
+				var svr:CGetListName = this._spatial.onGetXClsList(e);
+				this.layer1.dataProvider = svr.Name;
+				this.layer2.dataProvider = svr.Name;
+			}
+			/**
+			 * 叠加分析
+			 */ 
+			private function submit():void
+			{
+				if (this.vectorObj == null)
+				{
+					Alert.show("没有激活的图层。", "提示");
+					return;
+				}
+				var obj:COverlayByLayer = new COverlayByLayer();
+				obj.FClsNameRtn = "overlay";
+				var gdbInfo:CGdbInfo = new CGdbInfo();
+				gdbInfo.GDBName = this.gdbName.selectedLabel;
+				gdbInfo.GDBSvrName = this.svrList.selectedLabel;
+				gdbInfo.Password = this.password.text;
+				gdbInfo.User = this.username.text;
+				obj.GdbInfo = gdbInfo;
+				obj.GdbInfoOverlay = gdbInfo;
+				obj.IsReCalculate = this.radiogroup_recalc.selectedValue;
+				obj.LayerName = this.layer1.selectedLabel;
+				obj.OverlayLayerName = this.layer2.selectedLabel;
+				obj.OverlayType = parseInt(this.radiogroup_overType.selectedValue.toString());
+				obj.Radius = parseFloat(this.radius.text);
+				obj.XClsType = dataType.selectedLabel == "简单要素类" ? EXClsType.SFeatureCls : EXClsType.FeatureCls;
+				this._spatial = new SpacialAnalyse(this.vectorObj);
+				this._spatial.overlayByLayer(obj, onSubmit);
+				this.button_submit.enabled = false;
+			}
+			/**
+			 * 返回叠加分析结果
+			 */ 
+			private function onSubmit(e:Event):void
+			{
+				var uid:String = this._spatial.onOverlayByLayer(e);
+				if (uid != null && uid != "")
+				{
+					clipTimer = new Timer(1000);
+					clipTimer.addEventListener(TimerEvent.TIMER, function(e:TimerEvent):void
+						{
+							onTimer(uid, e)
+						});
+					clipTimer.start();
+					this.button_submit.label = "0秒";
+				}
+				else
+					cancel();
+			}
+			/**
+			 * 计时器变化并获取结果
+			 */ 
+			private function onTimer(uid:String, e:TimerEvent):void
+			{
+				this._spatial.getAnalyseResult(uid, getOverlayResult);
+				this.clipTimer.stop();
+				this.button_submit.label = Timer(e.target).currentCount.toString() + "秒";
+			}
+			/**
+			 * 获取叠加结果
+			 */ 
+			public function getOverlayResult(e:Event):void
+			{
+				var rltName:String = this._spatial.onGetAnalyseResult(e);
+				if (rltName == null)
+				{
+					cancel();
+					return;
+				}
+				if (rltName == "")
+				{
+					this.clipTimer.start();
+					return;
+				}
+				if (rltName == "*#*")
+				{
+					Alert.show("叠加分析失败", "提示");
+				}
+				else
+				{
+					Alert.yesLabel = "查看结果";
+					Alert.noLabel = "取消";
+					Alert.show("叠加分析成功。是否需要查看结果图层属性记录？", "提示", Alert.YES | Alert.NO, this, function(e:CloseEvent):void
+						{
+							onAlert(e, rltName)
+						}, null, Alert.NO);
+				}
+				cancel();
+			}
+			/**
+			 * 返回叠加结果图层的数据
+			 */ 
+			public function onAlert(e:CloseEvent, rltLayerName:String):void
+			{
+				if (e.detail != Alert.YES)
+				{
+					return;
+				}
+				if(this.layerDataViewer==null)
+				{
+					Alert.show("layerDataViewer属性为空！请创建LayerDataViewer控件！");
+					return;
+				}
+				var layerType:String = dataType.selectedLabel == "简单要素类" ? EXClsType.SFeatureCls : EXClsType.FeatureCls;
+				this.layerDataViewer.showLayerAttRecord(rltLayerName, layerType,this.vectorObj.serverAddress);
+			}
+			/**
+			 * 取消叠加分析
+			 */ 
+			public function cancel():void
+			{
+				if (this.clipTimer != null && this.clipTimer.running)
+					this.clipTimer.stop();
+				this.button_submit.label = "提交";
+				this.button_submit.enabled = true;
+			}
+		]]>
+	</mx:Script>
+	<mx:Button x="232"
+			   y="238"
+			   label="确定"
+			   click="getLayerList()"/>
+	<mx:Label x="10"
+			  y="397"
+			  text="重算面积周长:"/>
+	<mx:RadioButtonGroup id="radiogroup_recalc"/>
+	<mx:RadioButton x="100"
+					y="396"
+					value="true"
+					label="是"
+					groupName="radiogroup_recalc"/>
+	<mx:RadioButton x="173.5"
+					y="396"
+					value="false"
+					label="否"
+					selected="true"
+					groupName="radiogroup_recalc"/>
+	<mx:RadioButtonGroup id="radiogroup_overType"/>
+	<mx:RadioButton x="100"
+					y="364"
+					value="0"
+					label="并"
+					groupName="radiogroup_overType"/>
+	<mx:RadioButton x="144.5"
+					y="364"
+					value="1"
+					label="交"
+					selected="true"
+					groupName="radiogroup_overType"/>
+	<mx:RadioButton x="189.5"
+					y="364"
+					value="2"
+					label="减"
+					groupName="radiogroup_overType"/>
+	<mx:RadioButton x="234"
+					y="364"
+					value="6"
+					label="差"
+					groupName="radiogroup_overType"/>
+</IMSWindow>

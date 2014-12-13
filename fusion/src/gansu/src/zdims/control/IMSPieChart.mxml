@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OverlayObject xmlns="zdims.map.*" enableUpdatePosition="false" creationComplete="init()" xmlns:mx="http://www.adobe.com/2006/mxml" width="150" height="100">
+	<mx:PieChart visible="true" x="0" y="0" id="chartObj" width="100%" height="100%" showDataTips="true">
+		 
+		<mx:series>
+			<mx:PieSeries displayName="Series 1" field="y"/>
+		</mx:series>
+	</mx:PieChart>
+	<mx:Script>
+		<![CDATA[
+			private var _data:Object=null;
+			public function set dataProvider(value:Object):void
+			{
+				if(this.chartObj!=null)
+					this.chartObj.dataProvider=value;
+				this._data=value;
+			}
+			public function get dataProvider():Object
+			{
+				return this._data;
+			}
+			public function init():void
+			{
+				this.chartObj.dataProvider=this._data;
+			}
+		]]>
+	</mx:Script>
+</OverlayObject>

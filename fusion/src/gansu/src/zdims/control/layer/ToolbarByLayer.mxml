@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工具条 -->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml"
+		   x="100"
+		   width="441"
+		   creationComplete="init()">
+	<mx:ViewStack y="25"
+				  id="viewstack1"
+				  width="428"
+				  height="37"
+				  x="0"
+				  styleName="Title">
+		<mx:Canvas label="显示"
+				   width="100%"
+				   height="100%"
+				   id="displayWidget">
+			<mx:HBox width="377"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="放大"
+						  source="image/widget/btn_01.png"
+						  click="onSelectToolClick('zoomin',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="缩小"
+						  source="image/widget/btn_02.png"
+						  click="onSelectToolClick('zoomout',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="移动"
+						  source="image/widget/btn_03.png"
+						  click="onSelectToolClick('pan',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="更新"
+						  source="image/widget/btn_05.png"
+						  click="onSelectToolClick('refresh',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="复位"
+						  source="image/widget/btn_04.png"
+						  click="onSelectToolClick('restore',null)"/>
+				<mx:Image buttonMode="true"
+				          toolTip="放大镜" 
+				          source="image/widget/tool_7.gif"
+				  		  click="setVisibility(this.magnifier)"/>
+				<mx:Image buttonMode="true"
+				          toolTip="鹰眼" 
+				          source="image/widget/tool_6.gif"
+				  		  click="onSelectToolClick('eagle',null)"/>
+				<mx:Image buttonMode="true"
+				          toolTip="添加标注" 
+				          source="image/mark/marker2/image2/title.png"
+				  		  width="34" height="34"
+				  		  click="setMarker()"/>
+			</mx:HBox>
+		</mx:Canvas>
+
+		<mx:Canvas label="查询"
+				   width="100%"
+				   height="100%"
+				   id="queryWidget">
+			<mx:HBox width="414"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="点击查询"
+						  source="image/widget/btn_06.png"
+						  click="if(!isNull(this.layerQuery))onSelectToolClick('SelectByHitting',this.layerQuery.selectByPoint)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="拉框查询"
+						  source="image/widget/btn_07.png"
+						  click="if(!isNull(this.layerQuery))onSelectToolClick('SelectByRect',this.layerQuery.selectByRect)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="画圆查询"
+						  source="image/widget/btn_08.png"
+						  click="if(!isNull(this.layerQuery))onSelectToolClick('SelectByCircle',this.layerQuery.selectByCircle)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="线查询"
+						  source="image/widget/btn_09.png"
+						  click="if(!isNull(this.layerQuery))onSelectToolClick('SelectByLine',this.layerQuery.selectByLine)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="多边形查询"
+						  source="image/widget/btn_10.png"
+						  click="if(!isNull(this.layerQuery))onSelectToolClick('SelectByPolygon',this.layerQuery.selectByPolygon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="属性条件查询"
+						  source="image/widget/btn_11.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('',this.layerConditionInput.selectByAttCondition)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="点击条件查询"
+						  source="image/widget/btn_12.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('SelectByHitting',this.layerConditionInput.selectByPointAndCon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="拉框条件查询"
+						  source="image/widget/btn_13.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('SelectByRect',this.layerConditionInput.selectByRectAndCon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="圆条件查询"
+						  source="image/widget/btn_14.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('SelectByCircle',this.layerConditionInput.selectByCircleAndCon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="线条件查询"
+						  source="image/widget/btn_15.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('SelectByLine',this.layerConditionInput.selectByLineAndCon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="多边形条件查询"
+						  source="image/widget/btn_16.png"
+						  click="if(!isNull(this.layerConditionInput))onSelectToolClick('SelectByPolygon',this.layerConditionInput.selectByPolygonAndCon)"/>
+			</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas label="编辑"
+				   width="100%"
+				   height="100%">
+			<mx:HBox width="376"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="添加点"
+						  source="image/widget/tool_21.gif"
+						  click="if(!isNull(this.editControl))onSelectToolClick('SelectByHitting',this.editControl.addPnt)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="添加线"
+						  source="image/widget/tool_22.gif"
+						  click="if(!isNull(this.editControl))onSelectToolClick('SelectByLine',this.editControl.addLine)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="添加区"
+						  source="image/widget/tool_23.gif"
+						  click="if(!isNull(this.editControl))onSelectToolClick('SelectByPolygon',this.editControl.addPolygon)"/>
+			</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas label="分析"
+				   width="100%"
+				   height="100%">
+			<mx:HBox width="376"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="圆裁剪"
+						  source="image/widget/btn_17.png"
+						  click="if(!isNull(this.clipControl))onSelectToolClick('SelectByCircle',this.clipControl.clipLayerByCircle)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="多边形裁剪"
+						  source="image/widget/btn_18.png"
+						  click="if(!isNull(this.clipControl))onSelectToolClick('SelectByPolygon',this.clipControl.clipLayerByPolygon)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="叠加分析"
+						  source="image/widget/btn_19.png"
+						  click="onSelectToolClick('overlayAnalyse',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="拓扑分析"
+						  source="image/widget/btn_20.png"
+						  click="setVisibility(this.topAnalyseWin)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="投影转换"
+						  source="image/widget/btn_21.png"
+						  width="32"
+						  height="32"
+						  click="onSelectToolClick('project',null)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="公交换乘窗口"
+						  source="image/widget/btn_22.png"
+						  width="32"
+						  height="32"
+						  click="setVisibility(this.busAnalyseCtrl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="网络分析窗口"
+						  source="image/widget/btn_23.png"
+						  width="32"
+						  height="32"
+						  click="onSelectToolClick('netAnalyse',null)"/>
+			</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas label="视图"
+				   width="100%"
+				   height="100%">
+			<mx:HBox width="417"
+					 id="viewBar"
+					 horizontalGap="5">
+				<mx:Image buttonMode="true"
+						  toolTip="导航控件"
+						  source="image/widget/btn_24.png"
+						  click="setVisibility(this.navigator)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="数据目录"
+						  source="image/widget/btn_25.png"
+						  click="setVisibility(this.catalog)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="位置信息窗口"
+						  source="image/widget/btn_26.png"
+						  click="setVisibility(this.positionControl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="查询结果显示窗口"
+						  source="image/widget/btn_27.png"
+						  click="setVisibility(this.layerQuery)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="条件输入"
+						  source="image/widget/btn_28.png"
+						  click="setVisibility(this.layerConditionInput)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="编辑窗口"
+						  source="image/widget/btn_29.png"
+						  click="setVisibility(this.editControl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="统计图窗口"
+						  source="image/widget/btn_30.png"
+						  click="setVisibility(this.chartCtrl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="裁剪分析窗口"
+						  source="image/widget/btn_31.png"
+						  click="setVisibility(this.clipControl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="显示设置"
+						  source="image/widget/btn_32.png"
+						  click="setVisibility(this.displaySetWin)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="测量"
+						  source="image/widget/btn_33.png"
+						  click="setVisibility(this.measureControl)"/>
+				<mx:Image buttonMode="true"
+						  toolTip="GPS"
+						  source="image/widget/tool_35.gif"
+						  click="setVisibility(this.gpsControl)"/>
+			</mx:HBox>
+		</mx:Canvas>
+	</mx:ViewStack>
+	<mx:ButtonBar id="buttonBar"
+				  dataProvider="viewstack1"
+				  fontSize="12">
+	</mx:ButtonBar>
+	<mx:Script>
+		<![CDATA[
+			import zdims.map.IMSEagleEye;
+			import zdims.control.*;
+			import zdims.util.IMSOperType;
+			import zdims.event.IMSMapMouseEvent;
+			import zdims.event.IMSMapEvent;
+			import zdims.map.IMSMap;
+			import mx.core.IFlexDisplayObject;
+			import sjd.managers.ResizeManager;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.core.Application;
+			import mx.utils.StringUtil;
+			import mx.core.UIComponent;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.collections.ArrayCollection;
+			import mx.controls.DataGrid;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.*;
+			
+			private var lastEvent:String;
+			private var lastCallFun:Function;
+			
+			private var _map:IMSMap;
+			[Inspectable(category="MapGisIMS")]
+			public var layerDataViewer:LayerDataViewer;
+			[Inspectable(category="MapGisIMS")]
+			public var topAnalyseWin:LayerTopAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var displaySetWin:layerDisplaySet;
+			[Inspectable(category="MapGisIMS")]
+			public var projectCtrlWin:Project;
+			[Inspectable(category="MapGisIMS")]
+			public var measureControl:Measure;
+			[Inspectable(category="MapGisIMS")]
+			public var gpsControl:GPS;
+			[Inspectable(category="MapGisIMS")]
+			public var editControl:LayerEditor;
+			[Inspectable(category="MapGisIMS")]
+			public var layerConditionInput:LayerConditionInput;
+			[Inspectable(category="MapGisIMS")]
+			public var chartCtrl:Chart;
+			[Inspectable(category="MapGisIMS")]
+			public var busAnalyseCtrl:BusAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var clipControl:ClipAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var navigator:NavigationBar;
+			[Inspectable(category="MapGisIMS")]
+			public var catalog:IMSCatalog;
+			[Inspectable(category="MapGisIMS")]
+			public var magnifier:Magnifier;
+			[Inspectable(category="MapGisIMS")]
+			public var netAnalyseCtrl:NetAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var overlayAnlyControl:OverLayAnalyse;
+			[Inspectable(category="MapGisIMS")]
+			public var positionControl:PositionInfo;
+			[Inspectable(category="MapGisIMS")]
+			public var eagleEye:IMSEagleEye;
+			[Inspectable(category="MapGisIMS")]
+			public var markEditor:MarkerEdit;
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				if(m!=null)
+					m.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				this._map = m;
+			}
+			[Inspectable(category="MapGisIMS")]
+			/**
+			 * 给地图容器赋值
+			 */
+			public function get imsmap():IMSMap
+			{
+				return this._map;
+			}
+			public function set layerQuery(viewer:LayerDataViewer):void
+			{
+				this.layerDataViewer=viewer;
+			}
+			public function get layerQuery():LayerDataViewer
+			{
+				return this.layerDataViewer;
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				removeMapEvent(this.lastEvent,this.lastCallFun);
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			private function init():void
+			{
+				try
+				{
+					ExternalInterface.addCallback("flOnLayerSelectToolClick", onSelectToolClick);
+				}
+				catch (err:Error)
+				{
+				}
+
+			}
+			/**
+			 * 工具触发函数
+			 */ 
+			private function onSelectToolClick(activeTool:String, callback:Function, exterFun:String="", enableExterCallBack:Boolean=true):void
+			{
+				if (this.imsmap == null)
+				{
+					Alert.show("Toolbar控件的imsmap属性为空，请赋值。");
+					return;
+				}
+				var isExter:Boolean = exterFun == "" ? false : true;
+				switch (activeTool.toLowerCase())
+				{
+					case "zoomin":
+						this.imsmap.setCurOper(IMSOperType.ZoomIn);
+						break;
+					case "zoomout":
+						this.imsmap.setCurOper(IMSOperType.ZoomOut);
+						break;
+					case "pan":
+						this.imsmap.setCurOper(IMSOperType.Drag);
+						break;
+					case "refresh":
+						this.imsmap.refresh();
+						break;
+					case "restore":
+						this.imsmap.restore();
+						break;
+					case "selectbyhitting":
+					case "selectbyhittingandatt":
+						this.imsmap.setCurOper(2001);
+						if (isExter && !enableExterCallBack)
+						{
+							callback = activeTool == "SelectByHitting" ? this.layerQuery.selectByPoint : this.layerConditionInput.selectByPointAndCon;
+							isExter = false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbyline":
+					case "selectbylineandatt":
+						this.imsmap.setCurOper(2005);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByLine" ? this.layerQuery.selectByLine : this.layerConditionInput.selectByLineAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+					case "selectbyrect":
+					case "selectbyrectandatt":
+						this.imsmap.setCurOper(2002);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByRect" ?this.layerQuery.selectByRect : this.layerConditionInput.selectByRectAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbycircle":
+					case "selectbycircleandatt":
+						this.imsmap.setCurOper(2003);
+						if (isExter && !enableExterCallBack)
+						{
+							callback=activeTool == "SelectByCircle" ? this.layerQuery.selectByCircle : this.layerConditionInput.selectByCircleAndCon;
+							isExter=false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_MOUSEUP, callback);
+						break;
+					case "selectbypolygon":
+					case "selectbypolygonandatt":
+						this.imsmap.setCurOper(2004);
+						if (isExter && !enableExterCallBack)
+						{
+							callback = activeTool == "SelectByPolygon" ? this.layerQuery.selectByPolygon : this.layerConditionInput.selectByPolygonAndCon;
+							isExter = false;
+						}
+						addMapEvent(IMSMapMouseEvent.MAP_DOUBLECLICK, callback);
+						break;
+					case "eagle":
+						if(this.eagleEye!=null)
+						{
+							this.eagleEye.switchEagleEye();
+						}
+						break;
+					case "overlayanalyse":
+						this.setVisibility(this.overlayAnlyControl);
+						this.overlayAnlyControl.vectorObj=this.imsmap.activeLayerObj;
+						break;
+					case "netanalyse":
+						this.setVisibility(this.netAnalyseCtrl);
+						this.netAnalyseCtrl.vectorObj=this.imsmap.activeLayerObj;
+						break;
+					case "project":
+						this.setVisibility(this.projectCtrlWin);
+						this.projectCtrlWin.vectorObj=this.imsmap.activeLayerObj;
+						break;
+					default:
+						this.imsmap.setCurOper(IMSOperType.Drag);
+						callback();
+						break;
+				}
+			}
+			private function addMapEvent(evtType:String,fun:Function):void
+			{
+				this.imsmap.addEventListener(evtType,fun);
+				this.lastEvent=evtType;
+				this.lastCallFun=fun;
+			}
+			private function removeMapEvent(evtType:String,fun:Function):void
+			{
+				if(evtType!=null&&fun!=null)
+				{
+					this.imsmap.removeEventListener(evtType,fun);
+				}
+			}
+			/**
+			 * 设置显示窗口
+			 */ 
+			private function setVisibility(obj:Object):void
+			{
+				if (obj == null||!(obj is UIComponent))
+				{
+					Alert.show("未找到相应控件，可能原因是未创建相应控件或者创建了但该控件的imsmap属性未赋值！", "提示");
+					return;
+				}
+				UIComponent(obj).visible = !UIComponent(obj).visible;
+			}
+			private function setMarker():void
+			{
+				if(this.markEditor==null)
+				{
+					Alert.show("未找到相应控件，可能原因是未创建相应控件或未给ToolBar控件的markEditor属性赋值！", "提示");
+					return;
+				}
+				this.markEditor.setMarker();
+			}
+			public function isNull(obj:Object,showMsg:Boolean=true):Boolean
+			{
+				if(obj==null&&showMsg)
+					Alert.show("未找到相就控件，可能原因是未创建相应控件或未将工具条与目标控件关联！", "提示");
+				return obj==null?true:false;
+			}
+		]]>
+	</mx:Script>
+
+</mx:Canvas>

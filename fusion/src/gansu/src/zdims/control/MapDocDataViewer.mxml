@@ -1,0 +1,1137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<IMSWindow xmlns="zdims.control.*" implements="zdims.interfaces.control.IMapDocDataViewer"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   layout="absolute"
+		   y="400"
+		   width="428"
+		   height="308"
+		   showCloseButton="true"
+		   title="查询结果显示控件"
+		   borderThicknessRight="0"
+		   borderThicknessLeft="0"
+		   styleName="Title"
+		   close="close()"
+		   alpha="0.8"
+		   creationComplete="init()"
+		   fontSize="12">
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.*;
+			import Mapgis7.WebService.BasLib.Serializer;
+			
+			import flash.events.TimerEvent;
+			import flash.utils.Timer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.Canvas;
+			import mx.containers.VBox;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.CheckBox;
+			import mx.controls.DataGrid;
+			import mx.controls.Label;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.controls.dataGridClasses.DataGridItemRenderer;
+			import mx.controls.listClasses.BaseListData;
+			import mx.core.Container;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.DataGridEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			import mx.validators.StringValidator;
+			
+			import sjd.managers.ResizeManager;
+			
+			import zdims.control.IMSWindow;
+			import zdims.draw.IMSCanvas;
+			import zdims.event.IMSMapEvent;
+			import zdims.map.IMSMap;
+			import zdims.map.VectorMapDoc;
+			import zdims.util.RectBound;
+			
+			private var activeMapDoc:VectorMapDoc;
+			private var originHeight:int=230;
+			private var _lastSelRowIndex:int=0;
+			private var _lastSelDataGrid:DataGrid;
+			private var _lastSelRlt:CMapSelectAndGetAtt;
+			private var _exterGetDataEvent:String="";
+			private var _exterGetFirstRowEvent:String="";
+			private var _exterClickEvent:String="";
+			private var _exterDblClickEvent:String="";
+			private var _lastSelectParam:CMapSelectParam;
+			private var _recordCountPerPage:int=20;
+			private var _lastPageCount:int=0;
+			private var _featureGeo:SFeatureGeometry;
+			private var tabSelIndex:int=0;
+			private var objByID:CGetObjByID=null;
+			/**
+			 * 图层名称
+			 */
+			private var layers:Array; 
+			/**
+			 * 选项卡，用来显示查询结果
+			 */
+			private var tabPage:Array;
+			/**
+			 * 属性字段
+			 */
+			private var attFldName:Array;
+			/**
+			 * 图层列表
+			 */
+			private var layerList:IMSWindow;
+			/**
+			 * 属性字段列表
+			 */
+			private var attList:IMSWindow;
+			/**
+			 * 当前操作
+			 */
+			private var _lastAction:String = "newSelect";
+			[Inspectable(category="MapGisIMS")]
+			public var enableLinkage:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var enableClickFlash:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var enableContextMenu:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var enableFlashFirst:Boolean=false;
+			[Inspectable(category="MapGisIMS")]
+			public var bufferControl:BufferAnalyse;
+			
+			private var _editor:Editor;
+			private var _charCtrl:Chart;
+			
+			
+			//矿山datagrid数据源
+			[Bindable]public var mines:XML;
+			[Bindable]public var jumptomine:String="http://localhost";
+			
+			//wanghuanda xiugai
+			[Inspectable(category="MapGisIMS")]
+			public function set editor(editorCtrl:Editor):void
+			{
+				this._editor=editorCtrl;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get editor():Editor
+			{
+				return this._editor;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function set chartCtrl(chart:Chart):void
+			{
+				this._charCtrl=chart;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get chartCtrl():Chart
+			{
+				return this._charCtrl;
+			}
+			
+			/**
+			 * 地图文档查询
+			 * @param geoObj 查询空间范围对象
+			 * @param selType 查询类型
+			 * @param page 结果记录页码
+			 * @param condition 查询条件
+			 * @param callback 结果处理函数
+			 *
+			 */
+			private function select(geoObj:Object, selType:String, page:int, condition:String="", callback:Function=null):void
+			{
+				if (!this.imsmap.existActiveMap())
+				{
+					return;
+				}
+				if (callback == null)
+				{
+					callback = this.selectCallback;
+				}
+				var mapsel:CMapSelectParam = new CMapSelectParam();
+				var websel:CWebSelectParam = new CWebSelectParam();
+				websel.CompareRectOnly = this.imsmap.activeMapDoc.compareRectOnly;
+				websel.Geometry = geoObj;
+				if (geoObj != null)
+				{
+					websel.GeomType = IWebGeometry(geoObj).GetGeomType();
+				}
+				websel.MustInside = this.imsmap.activeMapDoc.mustInside;
+				websel.NearDistance = this.imsmap.activeMapDoc.nearDistanse;
+				websel.SelectionType = selType;
+				websel.WhereClause = condition;
+				mapsel.SelectParam = websel;
+				mapsel.PageCount = page;
+				this.setLastSelectParam(mapsel);
+				this.imsmap.activeMapDoc.select(mapsel, callback);
+			}
+			
+			/**
+			 * 点击查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPoint(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedDot(), ESelectionType.SpatialRange, 0);
+			}
+			
+			/**
+			 * 线查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByLine(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedLine(), ESelectionType.SpatialRange, 0);
+			}
+			
+			/**
+			 * 多边形查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPolygon(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedPolygon(), ESelectionType.SpatialRange, 0);
+				
+			}
+			
+			/**
+			 * 矩形查询
+			 * @param e
+			 *
+			 */
+			public function selectByRect(e:Event):void
+			{
+				//select(this.imsmap.graphicCanvas.getSelectedRect(), ESelectionType.SpatialRange, 0);
+				//王欢达修改
+				
+				//mx.controls.Alert.show(this.imsmap.graphicCanvas.getSelectedRect().xmax.toString());
+				var myService:HTTPService=new HTTPService();
+				myService.url="../admin.php?xmax="+this.imsmap.graphicCanvas.getSelectedRect().xmax.toString()+"&&xmin="+this.imsmap.graphicCanvas.getSelectedRect().xmin.toString()+"&&ymax="+this.imsmap.graphicCanvas.getSelectedRect().ymax.toString()+"&&ymin="+this.imsmap.graphicCanvas.getSelectedRect().ymin.toString();
+				myService.method="Get";
+				myService.showBusyCursor=true;
+				myService.resultFormat="e4x";
+				myService.addEventListener(ResultEvent.RESULT,SelectResultHandler);
+				myService.addEventListener(FaultEvent.FAULT,faultHandler);
+				myService.send();	
+				
+				
+				
+			}
+			public function SelectResultHandler(e:ResultEvent):void{
+				var returnValue:XML=XML(e.result);
+				mines=returnValue;
+				dg.dataProvider=mines.ListItem;
+				
+				select(this.imsmap.graphicCanvas.getSelectedRect(), ESelectionType.SpatialRange, 0);
+				//mx.controls.Alert.show(returnValue.toString());
+				
+				/*
+				this.showResult(resultData);
+				*/
+			}
+			
+			
+			
+			private function faultHandler(e:ResultEvent):void{
+				var err:String="wrong!!!";
+				mx.controls.Alert.show(e.message.toString(),err);
+			}
+			
+			/**
+			 * 圆查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByCircle(e:Event):void
+			{
+				//select(this.imsmap.graphicCanvas.getSelectedCircle(), ESelectionType.SpatialRange, 0);
+				selectCircle(this.imsmap.graphicCanvas.getSelectedCircle().Center.x,this.imsmap.graphicCanvas.getSelectedCircle().Center.y,this.imsmap.graphicCanvas.getSelectedCircle().Radius);
+			}
+			public function selectCircle(x:Number,y:Number,rid:Number):void
+			{
+				//select(this.imsmap.graphicCanvas.getSelectedCircle(), ESelectionType.SpatialRange, 0);
+				var myService:HTTPService=new HTTPService();
+				
+				myService.url="../admin3.php?x="+x+"&&y="+y+"&&rid="+rid;
+				myService.method="Get";
+				myService.showBusyCursor=true;
+				myService.resultFormat="e4x";
+				myService.addEventListener(ResultEvent.RESULT,SelectResultHandler);
+				myService.addEventListener(FaultEvent.FAULT,faultHandler);
+				myService.send();
+			}
+			
+			/**
+			 * js脚本调用函数：双击事件
+			 */ 
+			public function setExterDblClickEvent(value:String=""):void
+			{
+				_exterDblClickEvent=value;
+			}
+			/**
+			 * js脚本调用函数：单击事件
+			 */ 
+			public function setExterClickEvent(value:String=""):void
+			{
+				_exterClickEvent=value;
+			}
+			/**
+			 * js脚本调用函数：获取第一条记录
+			 */ 
+			public function setExterGetFirstRowEvent(value:String=""):void
+			{
+				_exterGetFirstRowEvent=value;
+			}
+			/**
+			 * js脚本调用函数：设置第一个要素删除
+			 */ 
+			public function setEnableFlashFirst(enable:Boolean):void
+			{
+				this.enableFlashFirst=enable;
+			}
+			/**
+			 * js脚本调用函数：设置联动
+			 */ 
+			public function setEnableLinkage(enable:Boolean):void
+			{
+				this.enableLinkage=enable;
+			}
+			/**
+			 * 获取查询结果
+			 */ 
+			public function get lastSelectResult():CMapSelectAndGetAtt
+			{
+				return _lastSelRlt;
+			}
+			/**
+			 * js脚本调用函数：获取数据
+			 */ 
+			public function setExterGetDataEvent(value:String=""):void
+			{
+				_exterGetDataEvent=value;
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				try
+				{
+					ExternalInterface.addCallback("flSetExterGetDataEvent", setExterGetDataEvent);
+					ExternalInterface.addCallback("flSetExterClickEvent", setExterClickEvent);
+					ExternalInterface.addCallback("flSetExterDblClickEvent", setExterDblClickEvent);
+					ExternalInterface.addCallback("flSetExterGetFirstRowEvent", setExterGetFirstRowEvent);
+					ExternalInterface.addCallback("flSetEnableLinkage", setEnableLinkage);
+					ExternalInterface.addCallback("flSetEnableFlashFirst", setEnableFlashFirst);
+					ExternalInterface.addCallback("flExterSelectByCondition", exterSelectByCondition);
+				}
+				catch (err:Error)
+				{
+				}
+				/*
+				this.tabContol.addEventListener(IndexChangedEvent.CHANGE, tabChange);
+				ResizeManager.enableResize(this, 100);
+				
+				if (enableContextMenu)
+				tabContol.contextMenu=tabGetContextMenu();
+				
+				layerList = new IMSWindow();
+				layerList.title = "显示/隐藏图层";
+				var box:VBox = new VBox();
+				layerList.addChild(box);
+				box.x = 5;
+				this.imsmap.addChild(layerList);
+				layerList.x = this.imsmap.width/2;
+				layerList.y = this.imsmap.height/2;
+				layerList.width = 150;
+				layerList.height = 200;
+				layerList.visible = false;
+				ResizeManager.enableResize(layerList,80);
+				
+				attList = new IMSWindow();
+				attList.title = "显示/隐藏属性字段";
+				box = new VBox();
+				attList.addChild(box);
+				box.x = 5;
+				this.imsmap.addChild(attList);
+				attList.x = this.imsmap.width/2-10;
+				attList.y = this.imsmap.height/2-10;
+				attList.width = 150;
+				attList.height = 200;
+				attList.visible = false;
+				ResizeManager.enableResize(attList,80);*/
+			}
+			/**
+			 * 显示图层列表
+			 * @ param e 
+			 */
+			private function onSelLayer(e:ContextMenuEvent):void
+			{
+				layerList.visible = true;
+				layerList.activeControl(null);
+			}
+			/**
+			 * 显示属性字段
+			 * @ param e
+			 */
+			private function onSelFldName(e:ContextMenuEvent):void
+			{
+				attList.visible = true;
+				attList.activeControl(null);
+				this.updateAttList();
+			}
+			/**
+			 * 更新属性字段表
+			 * 
+			 */
+			private function updateAttList():void
+			{
+				/*attList.getChildren()[0].removeAllChildren();
+				if(this.tabPage.length == 0)
+				return;
+				if(this.tabContol.selectedChild == null)
+				return;
+				try
+				{
+				var i:int=this.tabPage.indexOf(this.tabContol.selectedChild);
+				}
+				catch(err:Error)
+				{
+				}
+				var selectedLayer:Label = new Label();
+				if(layers[i] == null)return;
+				selectedLayer.text=this.layers[i].label + ":";
+				this.attList.getChildren()[0].addChild(selectedLayer);
+				for (var k:int = 0; k < attFldName[i].length; k++)
+				{
+				attList.getChildren()[0].addChild(attFldName[i][k]);
+				}*/
+			}
+			/**
+			 * 设置右键
+			 */ 
+			private function getContexMenu(layerIndex:int):ContextMenu
+			{
+				
+				var menu:ContextMenu=new ContextMenu();
+				if (this.imsmap.activeMapDoc.activeLayerIndex == layerIndex)
+				{
+					var delItem:ContextMenuItem=new ContextMenuItem("删 除");
+					delItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, deleteFeature);
+					var editItem:ContextMenuItem=new ContextMenuItem("编 辑");
+					editItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, editFeature);
+					var bufferItem:ContextMenuItem=new ContextMenuItem("缓冲分析");
+					bufferItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, bufferFeature);
+					menu.customItems.push(editItem, delItem, bufferItem);
+					
+				}
+				var charItem:ContextMenuItem=new ContextMenuItem("统计图");
+				charItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onChart);
+				menu.customItems.push(charItem);
+				
+				var selLayerItem:ContextMenuItem = new ContextMenuItem("显示/隐藏图层");
+				selLayerItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,onSelLayer);
+				menu.customItems.push(selLayerItem);
+				
+				var selFldName:ContextMenuItem=new ContextMenuItem("显示/隐藏属性字段");
+				selFldName.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onSelFldName);
+				menu.customItems.push(selFldName);
+				
+				menu.hideBuiltInItems();
+				return menu;
+			}
+			/**
+			 * 设置tabContol的右键
+			 */
+			private function tabGetContextMenu():ContextMenu
+			{
+				var menu:ContextMenu=new ContextMenu();
+				
+				var selLayerItem:ContextMenuItem = new ContextMenuItem("显示/隐藏图层");
+				selLayerItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,onSelLayer);
+				menu.customItems.push(selLayerItem);
+				
+				var selFldName:ContextMenuItem=new ContextMenuItem("显示/隐藏属性字段");
+				selFldName.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onSelFldName);
+				menu.customItems.push(selFldName);
+				
+				menu.hideBuiltInItems();
+				return menu;
+			}
+			/**
+			 * 统计图回调函数
+			 */ 
+			public function onChart(e:ContextMenuEvent):void
+			{
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				var tblIndex:int=int(dg.id.split("_")[1]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tblIndex]);
+				if (this.chartCtrl == null)
+				{
+					Alert.show("未找到统计图控件。", "提示");
+					return;
+				}
+				UIComponent(this.chartCtrl).visible=true;
+				this.chartCtrl.setDataProvider(curRltTable);
+			}
+			/**
+			 * 删除要素触发函数
+			 */ 
+			public function deleteFeature(e:ContextMenuEvent):void
+			{
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+				var tblIndex:int=int(dg.id.split("_")[1]);
+				var getGeo:CGetObjByID=new CGetObjByID();
+				getGeo.FeatureID=tagetData[0];
+				getGeo.MapDocIndex=0;
+				getGeo.LayerIndex=tblIndex;
+				var openmap:COpenMap=new COpenMap();
+				openmap.MapName=new Array(activeMapDoc.mapDocName);
+				getGeo.MapName=openmap;
+				Alert.okLabel="确定";
+				Alert.cancelLabel="取消";
+				Alert.show("你真的要删除吗？执行后将不能撤消！", "删除确认", Alert.OK | Alert.CANCEL, this, function(e:CloseEvent):void
+				{
+					onAlert(e, getGeo)
+				}, null, Alert.CANCEL);
+			}
+			/**
+			 * 删除要素
+			 */ 
+			public function onAlert(e:CloseEvent, getGeo:CGetObjByID):void
+			{
+				if (e.detail == Alert.OK)
+				{
+					if (!this.imsmap.existActiveMap())
+						return;
+					this.imsmap.activeMapDoc.deleteFeature(getGeo, onDeleteFeature);
+				}
+			}
+			/**
+			 * 删除要素回调函数
+			 */ 
+			public function onDeleteFeature(e:Event):void
+			{
+				var rlt:COperResult=this.imsmap.activeMapDoc.getResultObject(e, "COperResult") as COperResult;
+				if (rlt.OperResult)
+				{
+					this.imsmap.activeMapDoc.refresh();
+					(this._lastSelDataGrid.dataProvider as ArrayCollection).removeItemAt(this._lastSelRowIndex);
+					Alert.show("删除成功", "提示");
+				}
+				else
+					Alert.show("删除失败，错误信息：" + rlt.ErrorInfo, "提示");
+			}
+			/**
+			 * 缓冲区分析
+			 */ 
+			public function bufferFeature(e:ContextMenuEvent):void
+			{
+				if(this.bufferControl==null)
+				{
+					Alert.show("bufferControl属性为NULL,请赋值！","提示");
+					return;
+				}
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+				var tblIndex:int=int(dg.id.split("_")[1]);
+				var openmap:COpenMap=new COpenMap();
+				openmap.MapName=new Array(activeMapDoc.mapDocName);
+				var feature:CGetObjByID=new CGetObjByID();
+				feature.LayerIndex=tblIndex;
+				feature.FeatureID=tagetData[0];
+				feature.MapName=openmap;
+				this.bufferControl.setTargetFeature(feature);
+				this.bufferControl.imsmap=this.imsmap;
+				this.bufferControl.visible=true;
+			}
+			/**
+			 * 更新记录
+			 */ 
+			public function updateRecord(fieldValues:Array):void
+			{
+				var rowValue:Array=(_lastSelDataGrid.dataProvider as ArrayCollection).getItemAt(_lastSelRowIndex) as Array;
+				var newValue:Array=new Array();
+				newValue[0]=rowValue[0];
+				newValue=newValue.concat(fieldValues);
+				var tblIndex:int=int(_lastSelDataGrid.id.split("_")[1]);
+				CAttDataRow(CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tblIndex]).Rows[_lastSelRowIndex]).Values=fieldValues;
+				(_lastSelDataGrid.dataProvider as ArrayCollection).setItemAt(newValue, _lastSelRowIndex);
+			}
+			/**
+			 * 编辑要素回调函数
+			 */ 
+			public function editFeature(e:ContextMenuEvent):void
+			{
+				if(this._editor==null)
+				{
+					Alert.show("editor属性为NULL,请赋值！","提示");
+					return;
+				}
+				//transfer the field to the editcontrol
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+				this._editor.setTargetFeatureGeo(null);
+				var tblIndex:int=int(dg.id.split("_")[1]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tblIndex]);
+				this._editor.setAttStructAndValue(curRltTable.Columns, tagetData);
+				this._editor.currentDataViewer=this;
+			}
+			/**
+			 * 设置上次查询参数对象
+			 */ 
+			public function setLastSelectParam(param:CMapSelectParam):void
+			{
+				this._lastSelectParam=param;
+				/*this.pageNum.text="1";*/
+				this._lastPageCount=0;
+			}
+			/**
+			 * js脚本调用函数：根据条件查询
+			 */ 
+			public function exterSelectByCondition(condition:String):void
+			{
+				var mapsel:CMapSelectParam=new CMapSelectParam();
+				var websel:CWebSelectParam=new CWebSelectParam();
+				websel.NearDistance=this.imsmap.activeMapDoc.nearDistanse;
+				websel.SelectionType=ESelectionType.Condition;
+				websel.WhereClause=condition;
+				mapsel.SelectParam=websel;
+				mapsel.PageCount=0;
+				this.setLastSelectParam(mapsel);
+				this.imsmap.activeMapDoc.select(mapsel, onExterSelectByCon);
+			}
+			/**
+			 * js脚本调用函数：根据条件查询回调函数
+			 */ 
+			public function onExterSelectByCon(e:Event):void
+			{
+				this.showResult(this.imsmap.activeMapDoc.onSelect(e));
+			}
+			/**
+			 * 显示结果
+			 */ 
+			public function showResult(selRlt:CMapSelectAndGetAtt):void
+			{
+				if (selRlt == null)
+					return;
+				this.activeControl(null);
+				activeMapDoc=this.imsmap.activeMapDoc;
+				_lastSelRlt=selRlt;
+				this.visible=true;
+				
+				if(this._lastAction != "getResultByPage")
+				{
+					//getLayerAndAttFld(selRlt);
+				}
+				setPageCount(selRlt);
+				
+				var tblNum:int=CAttDataSet(selRlt.AttDS[0]).attTables.length;
+				//this.tabContol.removeAllChildren();
+				tabPage = new Array();
+				var hasReturnFirsRecord:Boolean=false;
+				var hasFlashFirstRecord:Boolean=false;
+				for (var i:int=0; i < tblNum; i++)
+				{
+					if(layers[i] == null)
+						continue;
+					tabPage[i] = new Canvas();
+					var layerName:String=CLayerInfo(CLayerAccessInfo(CGetLayerAccessInfo(activeMapDoc.loadMapResult.LayerAccessInfo).LayerAccessInfo[i]).LayerInfoList[0]).LayerDataName;
+					tabPage[i].label=layerName;
+					
+					var attRows:Array=CAttDataTable(CAttDataSet(selRlt.AttDS[0]).attTables[i]).Rows;
+					var rowLen:int=attRows.length;
+					var rows:ArrayCollection=new ArrayCollection();
+					for (var j:int=0; j < rowLen; j++)
+					{
+						var fid:Array=new Array();
+						fid[0]=CAttDataRow(attRows[j]).FID;
+						var rowArray:Array=fid.concat(CAttDataRow(attRows[j]).Values);
+						rows.addItem(rowArray);
+					}
+					if (rowLen > 0 && _exterGetFirstRowEvent != "" && !hasReturnFirsRecord)
+					{
+						//return the first record 
+						exterGetRow(i, 0, _exterGetFirstRowEvent);
+						hasReturnFirsRecord=true;
+					}
+					if (this.enableFlashFirst && rowLen > 0 && !hasFlashFirstRecord)
+					{
+						var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[i]);
+						var selRow:CAttDataRow=CAttDataRow(curRltTable.Rows[0]);
+						//flash the feature when click the record
+						var getGeo:CGetObjByID=new CGetObjByID();
+						getGeo.FeatureID=selRow.FID;
+						getGeo.MapDocIndex=0;
+						getGeo.LayerIndex=i;
+						var openmap:COpenMap=new COpenMap();
+						openmap.MapName=new Array(activeMapDoc.mapDocName);
+						getGeo.MapName=openmap;
+						this.imsmap.activeMapDoc.getGeomByID(getGeo, flashFeature);
+						hasFlashFirstRecord=true;
+					}
+					var dg:DataGrid=new DataGrid();
+					dg.id="datagrid_" + i.toString();
+					//					dg.width=this.width-20;
+					//					dg.height=this.tabContol.height-40;
+					var cols:Array=CAttDataTable(CAttDataSet(selRlt.AttDS[0]).attTables[i]).Columns.FldName;
+					var colLen:int=cols.length;
+					for (var k:int=0; k <= colLen; k++)
+					{
+						var col:DataGridColumn=new DataGridColumn();
+						col.headerText=k == 0 ? "FID" : cols[k - 1];
+						col.dataField=k.toString();
+						dg.columns=dg.columns.concat(col);
+					}
+					dg.dataProvider=rows;
+					//					dg.editable=true;
+					dg.doubleClickEnabled=true;
+					//					dg.addEventListener(MouseEvent.DOUBLE_CLICK, onDblClick);
+					dg.addEventListener(MouseEvent.CLICK, onClick);
+					if (enableContextMenu)
+						dg.contextMenu=getContexMenu(i);
+					tabPage[i].addChild(dg);
+					/*if(this.layers[i].selected == true)
+					this.tabContol.addChild(tabPage[i]);*/
+				}
+				if (_exterGetDataEvent != "")
+				{
+					ExternalInterface.call(_exterGetDataEvent, data);
+				}
+				
+				if(this._lastAction == "getResultByPage")
+					//this.tabContol.selectedIndex=tabSelIndex;
+					if(this._lastAction == "newSelect")
+					{
+						var time:Timer = new Timer(45,2);
+						time.addEventListener(TimerEvent.TIMER,handleTimer);
+						time.start();
+					}
+				
+				if(this.attList.visible == true && this._lastAction == "newSelect")
+				{
+					this.updateAttList();
+				}
+				
+				this._lastAction = "newSelect";
+			}
+			/**
+			 * 计时器事件处理函数	
+			 * @param e 事件
+			 */
+			private function handleTimer(e:Event):void
+			{
+				/*if(e.currentTarget.currentCount == 1)
+				this.tabContol.selectedIndex = this.tabContol.getChildren().length -1;
+				if(e.currentTarget.currentCount == 2)
+				this.tabContol.selectedIndex = 0;*/
+			}
+			/**
+			 * 设置选定项
+			 */ 
+			private function tabChange(event:IndexChangedEvent):void
+			{
+				/*tabSelIndex=this.tabContol.selectedIndex;
+				if(this.attList.visible == true)
+				{
+				this.updateAttList();
+				}*/
+			}
+			/**
+			 * 获取所查询图层的名称和属性字段
+			 * @param selRlt 查询结果
+			 */
+			private function getLayerAndAttFld(selRlt:CMapSelectAndGetAtt):void
+			{
+				var tblNum:int=CAttDataSet(selRlt.AttDS[0]).attTables.length;
+				this.layerList.getChildren()[0].removeAllChildren();
+				this.attList.getChildren()[0].removeAllChildren();
+				layers = new Array();
+				attFldName = new Array();
+				for (var i:int=0; i < tblNum; i++)
+				{
+					var layStatus:String=this.activeMapDoc.getMapLayerInfo(i).LayerStatus;
+					if(layStatus==EnumLayerStatus.Invisiable||layStatus==EnumLayerStatus.Visiable)
+						continue;
+					
+					var layerName:String=CLayerInfo(CLayerAccessInfo(CGetLayerAccessInfo(activeMapDoc.loadMapResult.LayerAccessInfo).LayerAccessInfo[i]).LayerInfoList[0]).LayerDataName;
+					
+					layers[i]= new CheckBox();
+					layers[i].label = layerName;
+					layerList.getChildren()[0].addChild(layers[i]);
+					layers[i].selected = true;
+					layers[i].addEventListener(MouseEvent.CLICK,modifyLayers);
+					
+					var cols:Array=CAttDataTable(CAttDataSet(selRlt.AttDS[0]).attTables[i]).Columns.FldName;
+					var colLen:int=cols.length;
+					attFldName[i] = new Array();
+					for (var k:int=0; k <= colLen; k++)
+					{
+						attFldName[i][k] = new CheckBox();
+						attFldName[i][k].label = k == 0 ? "FID" : cols[k - 1];
+						attFldName[i][k].addEventListener(MouseEvent.CLICK,modifyAttFld);
+						attFldName[i][k].selected = true;
+					}
+				}
+			}
+			/**
+			 * 显示/删除指定图层的查询结果
+			 * @ param e 鼠标事件
+			 */
+			private function modifyLayers(e:MouseEvent):void
+			{
+				/*var i:int = this.layers.indexOf(e.currentTarget);
+				if (e.currentTarget.selected == true)
+				{
+				if (this.tabContol.getChildren().length > 0)
+				{
+				for (var k:int=0; k < this.tabContol.getChildren().length; k++)
+				{
+				try
+				{
+				var j :int = this.tabPage.indexOf(this.tabContol.getChildren()[k]);
+				}
+				catch(err:Error)
+				{
+				
+				}
+				if (k == 0)
+				{
+				if (i < j)
+				{
+				this.tabContol.addChildAt(tabPage[i], k);
+				break;
+				}
+				}
+				if (k == this.tabContol.getChildren().length - 1 )
+				{
+				if (i > j)
+				{
+				this.tabContol.addChildAt(tabPage[i], k + 1);
+				break;
+				}
+				}
+				if(k < this.tabContol.getChildren().length - 1 )
+				{
+				if (i > j && i < this.tabPage.indexOf(this.tabContol.getChildren()[k+1]))
+				{
+				this.tabContol.addChildAt(tabPage[i], k + 1);
+				break;
+				}
+				}
+				}
+				}
+				else
+				{
+				this.tabContol.addChild(tabPage[i]);
+				}					
+				}
+				else
+				{
+				this.tabContol.removeChild(tabPage[i]);
+				}
+				setPageCount(this._lastSelRlt);
+				if(attList.visible == true)
+				this.updateAttList();*/
+			}
+			/**
+			 * 显示/隐藏指定属性字段
+			 * @ param e 鼠标事件
+			 */
+			private function modifyAttFld(e:MouseEvent):void
+			{
+				/*try
+				{
+				var i:int = this.tabPage.indexOf(this.tabContol.selectedChild);
+				var k:int = this.attFldName[i].indexOf(e.currentTarget);
+				}
+				catch(err:Error)
+				{
+				
+				}*/
+				//this.tabContol.selectedChild.getChildren()[0].columns[k].visible = e.currentTarget.selected;
+			}
+			/**
+			 * 设置页数
+			 */ 
+			private function setPageCount(attSet:CMapSelectAndGetAtt):void
+			{
+				/*if (attSet.Count == null || (attSet.Count[0] as Array) == null || (attSet.Count[0] as Array).length == 0)
+				{
+				this._lastPageCount=0;
+				return;
+				}
+				var countArr:Array=(attSet.Count[0] as Array);
+				var maxCount:int=0;
+				for (var i:int=0; i < countArr.length; i++)
+				{
+				if(layers[i] == null || layers[i].selected == false)
+				continue;
+				maxCount=Math.max(maxCount, countArr[i]);
+				}
+				maxCount=Math.ceil(maxCount / this._recordCountPerPage);
+				this._lastPageCount=maxCount;
+				this.totalPage.text="共" + maxCount + "页";*/
+			}
+			//			/**
+			//			 * 双击事件回调函数
+			//			 */ 
+			//			public function onDblClick(e:MouseEvent):void
+			//			{
+			//				var dg:DataGrid=e.currentTarget as DataGrid;
+			//				if (_exterDblClickEvent != "")
+			//				{
+			//					var tblIndex:int=int(dg.id.split("_")[1]);
+			//					var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tblIndex]);
+			//					var filedNum:int=curRltTable.Columns.FldNumber;
+			//					var rowValues:Array=dg.selectedItems[0].toString().split(",");
+			//					var outStr:String="FID=";
+			//					outStr+=rowValues[0].toString() + "&";
+			//					for (var i:int=0; i < filedNum; i++)
+			//					{
+			//						outStr+=curRltTable.Columns.FldName[i].toString() + "=" + rowValues[i + 1].toString();
+			//						if (i != filedNum - 1)
+			//							outStr+="&";
+			//					}
+			//					ExternalInterface.call(_exterDblClickEvent, encodeURI(outStr));
+			////					Alert.show(outStr);
+			//				}
+			//			}
+			/**
+			 * 单击事件回调函数
+			 */ 
+			public function onClick(e:MouseEvent):void
+			{
+				/*var itemRender:DataGridItemRenderer=e.target as DataGridItemRenderer;
+				if (itemRender == null)
+				return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+				return;
+				var dg:DataGrid=e.currentTarget as DataGrid;
+				if (dg.selectedItem == null)
+				return;
+				
+				var tblIndex:int=int(dg.id.split("_")[1]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tblIndex]);
+				var filedNum:int=curRltTable.Columns.FldNumber;
+				var rowValues:Array=dg.selectedItems[0].toString().split(",");
+				if (enableClickFlash)
+				{
+				//flash the feature when click the record
+				if (this.imsmap.cursorManager.currentCursorID > 0)
+				{
+				Alert.show("正在处理上一步操作，请稍候！");
+				return;
+				}
+				var getGeo:CGetObjByID=new CGetObjByID();
+				getGeo.FeatureID=rowValues[0];
+				getGeo.MapDocIndex=0;
+				getGeo.LayerIndex=tblIndex;
+				var openmap:COpenMap=new COpenMap();
+				openmap.MapName=new Array(activeMapDoc.mapDocName);
+				getGeo.MapName=openmap;
+				var setIsTopo:CSetTopoEdit=new CSetTopoEdit();
+				setIsTopo.MapDocIndex=0;
+				setIsTopo.LayerIndex=tblIndex;
+				setIsTopo.IsTopoEdit=false;
+				this.imsmap.activeMapDoc.setTopoEdit(setIsTopo,this.imsmap.activeMapDoc.onSetTopoEdit);
+				this.imsmap.activeMapDoc.getGeomByID(getGeo, flashFeature);
+				}
+				if (_exterClickEvent != "")
+				{
+				
+				var outStr:String="FID=";
+				outStr+=rowValues[0].toString() + "&";
+				for (var i:int=0; i < filedNum; i++)
+				{
+				outStr+=curRltTable.Columns.FldName[i].toString() + "=" + rowValues[i + 1].toString();
+				if (i != filedNum - 1)
+				outStr+="&";
+				}
+				ExternalInterface.call(_exterClickEvent, encodeURI(outStr));
+				//					Alert.show(outStr);
+				}*/
+			}
+			/**
+			 * 闪烁要素
+			 */ 
+			public function flashFeature(e:Event):void
+			{
+				this._featureGeo=imsmap.activeMapDoc.onGetGeomByID(e);
+				if (this._featureGeo == null)
+					return;
+				if (enableLinkage)
+				{
+					//jump the map to show the feature
+					var fRect:Array=this.imsmap.graphicCanvas.flashGeo(this._featureGeo, false,false);
+					var centerx:Number=(fRect[0] + fRect[2]) / 2;
+					var centery:Number=(fRect[1] + fRect[3]) / 2;
+					//if (this.imsmap.cenPntLogCoor.x != centerx || this.imsmap.cenPntLogCoor.y != centery)
+					if(!this.imsmap.winViewBound.contains(centerx,centery))
+					{
+						this.imsmap.addEventListener(IMSMapEvent.MAP_MOVEOVER,onPanEnd);
+						var rect:RectBound=new RectBound(imsmap.winViewBound.xMin-imsmap.winViewBound.pX,
+							imsmap.winViewBound.yMin-imsmap.winViewBound.pY,
+							imsmap.winViewBound.xMax+imsmap.winViewBound.pX,
+							imsmap.winViewBound.yMax+imsmap.winViewBound.pY)
+						if(rect.contains(centerx,centery))	
+							imsmap.panTo(centerx, centery);
+						else
+							imsmap.setCenter(centerx, centery,imsmap.curMapLevel);
+					}
+					else
+						this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+				}
+				else
+					this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+				
+				
+			}
+			/**
+			 * 定位闪烁
+			 */ 
+			public function onPanEnd(e:Event):void
+			{
+				if(this._featureGeo!=null)
+					this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_MOVEOVER,onPanEnd);
+			}
+			/**
+			 * 获取一行数据
+			 */ 
+			public function exterGetRow(tableIndex:int, rowIndex:int, exterEvent:String):void
+			{
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[0]).attTables[tableIndex]);
+				var selRow:CAttDataRow=CAttDataRow(curRltTable.Rows[rowIndex]);
+				var filedNum:int=curRltTable.Columns.FldNumber;
+				var outStr:String="FID=";
+				outStr+=selRow.Values[0].toString() + "&";
+				for (var i:int=0; i < filedNum; i++)
+				{
+					outStr+=curRltTable.Columns.FldName[i].toString() + "=" + selRow.Values[i].toString();
+					if (i != filedNum - 1)
+						outStr+="&";
+				}
+				ExternalInterface.call(exterEvent, encodeURI(outStr));
+				//    			Alert.show(outStr);
+			}
+			/**
+			 * 根据页数获取结果
+			 */ 
+			public function getResultByPage(page:int):void
+			{
+				/*if (this._lastSelectParam == null)
+				return;
+				page=page > this._lastPageCount ? this._lastPageCount : page;
+				page=page < 1 ? 1 : page;
+				this.pageNum.text=page.toString();
+				this._lastSelectParam.PageCount=page - 1;
+				this._lastAction = "getResultByPage";
+				this.imsmap.activeMapDoc.select(this._lastSelectParam, this.selectCallback);*/
+			}
+			
+			/**
+			 * 查询结果处理事件
+			 * @param e
+			 *
+			 */
+			public function selectCallback(e:Event):void
+			{
+				this.showResult(this.imsmap.activeMapDoc.onSelect(e));
+			}
+			
+			
+			
+			
+			
+			protected function dg_changeHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			
+			
+			
+			
+			protected function dg_clickHandler(e:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+				var dat:String = (e.target as DataGrid).selectedItem[(e.target as DataGrid).columns[1].dataField];
+				//Alert.show((e.target as DataGrid).selectedItem[(e.target as DataGrid).columns[0].dataField]);
+				if(e.columnIndex==4)
+				{
+					this.jumptomine=(e.target as DataGrid).selectedItem[(e.target as DataGrid).columns[0].dataField];
+					navigateToURL(new URLRequest(this.jumptomine),"_top");
+				}
+				
+				
+				//navigateToURL(new URLRequest( ),"_top");
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:DataGrid id="dg" width="456" height="165" dataProvider="{mines.ListItem}" itemClick="dg_clickHandler(event)" x="26" y="38">
+		<mx:columns>
+			<mx:DataGridColumn headerText="点击查看详情" dataField="id" visible="false"/>	
+			<mx:DataGridColumn headerText="矿山名称" dataField="name"/>
+			<mx:DataGridColumn headerText="所属企业" dataField="enterpriseName"/>
+			<mx:DataGridColumn headerText="企业性质" dataField="enterpriseproperty"/>
+			<mx:DataGridColumn headerText="开采规模" dataField="produce_dig"/>
+			<mx:DataGridColumn headerText="点击查看" dataField="look">	
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:Button toolTip="显示"  label="详细" /> 
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn> 
+			
+		</mx:columns>
+	</mx:DataGrid>
+	
+</IMSWindow>

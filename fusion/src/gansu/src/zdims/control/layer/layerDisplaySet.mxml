@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<IMSWindow xmlns="zdims.control.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="212"
+		   height="274"
+		   title="显示参数设置"
+		   layout="vertical"
+		   creationComplete="initStyle()">
+	<mx:HBox height="33">
+		<mx:CheckBox label="还原显示"
+					 id="origin"/>
+	</mx:HBox>
+	<mx:HBox height="33">
+		<mx:CheckBox label="显示坐标点"
+					 id="Coordinate"/>
+	</mx:HBox>
+	<mx:HBox height="33">
+		<mx:CheckBox label="跟随显示"
+					 id="followShow"/>
+	</mx:HBox>
+	<mx:HBox height="33">
+		<mx:Label text="图像质量:"/>
+		<mx:RadioButtonGroup id="imgQuality"/>
+		<mx:RadioButton label="低"
+						value="0"
+						groupName="imgQuality"
+						selected="true"/>
+		<mx:RadioButton label="高"
+						value="2"
+						groupName="imgQuality"/>
+	</mx:HBox>
+	<mx:HBox height="37"
+			 width="179"
+			 paddingLeft="40"
+			 paddingTop="5">
+		<mx:Button label="确定"
+				   click="submit()"/>
+		<mx:Button label="退出"
+				   click="this.close()"/>
+	</mx:HBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.CDisplayStyle;
+			import Mapgis7.WebService.BasLib.CSetLayerDisplayStyle;
+			import Mapgis7.WebService.BasLib.DynShowStyle;
+			import mx.controls.Alert;
+			import Mapgis7.WebService.BasLib.COperResult;
+			import Mapgis7.WebService.BasLib.CSetMapDispStyle;
+			/**
+			 * 设置显示参数
+			 */ 
+			public function submit():void
+			{
+				if (this.imsmap == null)
+				{
+					Alert.show("imsmap属性未赋值。", "提示");
+					return;
+				}
+				if(this.imsmap.activeLayerObj==null)
+				{
+					Alert.show("当前没有图层对象被激活！");
+					return;
+				}
+				var obj:CSetLayerDisplayStyle = new CSetLayerDisplayStyle();
+				obj.DisplayStyle=new Array();
+				for(var i:int=0;i<this.imsmap.activeLayerObj.layerObj.LayerAccessInfo.length;i++)
+				{
+					obj.DisplayStyle[i]=new CDisplayStyle();
+					obj.DisplayStyle[i].DriverQuality = parseInt(this.imgQuality.selectedValue.toString());
+					obj.DisplayStyle[i].FollowScale = this.followShow.selected;
+					obj.DisplayStyle[i].ShowCoordPnt = this.Coordinate.selected;
+					obj.DisplayStyle[i].SymbleShow = this.origin.selected;
+					obj.DisplayStyle[i].ShowStyle = null;
+				}
+				this.imsmap.activeLayerObj.setLayerDisplayStyle(obj, onSubmit);
+			}
+			/**
+			 * 设置显示参数回调函数
+			 */ 
+			public function onSubmit(e:Event):void
+			{
+				var rlt:COperResult = this.imsmap.activeLayerObj.onSetLayerDisplayStyle(e);
+				if (rlt != null)
+				{
+					if (rlt.OperResult)
+					{
+						Alert.show("更新显示参数成功，您可以更新地图查看效果！", "提示");
+					}
+					else
+					{
+						Alert.show("更新显示参数失败。错误信息：" + rlt.ErrorInfo, "提示");
+					}
+				}
+				else
+				{
+					Alert.show("更新显示参数失败", "提示");
+				}
+			}
+			/**
+			 * 初始化函数
+			 */ 
+			public function initStyle():void
+			{
+			}
+		]]>
+	</mx:Script>
+</IMSWindow>

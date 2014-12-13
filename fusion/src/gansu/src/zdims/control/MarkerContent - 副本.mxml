@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns="zdims.control.*"
+				showCloseButton="true"
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				headerColors="{['#D6EAF2','#D6EAF2']}"
+				width="250"
+				height="270"
+				layout="vertical"
+				title="标注"
+				creationComplete="init()"
+				fontSize="12"
+				borderThicknessBottom="0"
+				borderThicknessLeft="0"
+				borderThicknessRight="0">
+	<mx:HBox width="230">
+		<mx:Label text="名称："/>
+		<mx:Text id="text_name"
+				 text="&#xa;"/>
+	</mx:HBox>
+	<mx:HBox width="229">
+		<mx:Label text="企业名称："/>
+		<mx:TextArea id="text_content"
+					 width="178"
+					 height="57"/>
+	</mx:HBox>
+	<mx:Button label="点击查看详情"  click="onClick()"/>
+	<mx:Script>
+		<![CDATA[
+			import flash.net.navigateToURL;
+			public var markTitle:String = "";
+			public var markName:String = "";
+			public var markContent:String = "";
+			public var markImageSource:String = "";
+			public var markLink:String = "";
+			/**
+			 * 设置标注显示信息
+			 */ 
+			public function setMarkerContent(title:String, contentText:String, link:String, imageSource:String=""):void
+			{
+				this.markTitle = title;
+				this.markName = title;
+				this.markContent = contentText;
+				this.markImageSource = imageSource;
+				this.markLink = link;
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public function init():void
+			{
+				this.title = markTitle;
+				this.text_name.text = markName;
+				this.text_content.htmlText = markContent;
+				//this.image.source = markImageSource;
+				
+			}
+			public function onClick():void
+			{
+				navigateToURL(new URLRequest(this.markLink),"_top");
+			}
+		]]>
+	</mx:Script>
+	
+</mx:TitleWindow>

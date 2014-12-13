@@ -1,0 +1,696 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 编辑控件 -->
+<IMSWindow xmlns="zdims.control.*" showCloseButton="true"
+				implements="zdims.interfaces.control.IFeatureEditor"
+				headerColors="{['#D6EAF2','#D6EAF2']}"
+				horizontalAlign="center"
+				xmlns:mx="http://www.adobe.com/2006/mxml"
+				layout="vertical"
+				x="250"
+				y="200"
+				width="274"
+				height="404"
+				title="编辑控件"
+				fontSize="12"
+				borderThicknessLeft="2"
+				borderThicknessRight="2"
+				borderThicknessBottom="2"
+				close="onClose(null)"
+				creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import zdims.draw.IMSCanvas;
+			import mx.messaging.AbstractConsumer;
+			import zdims.interfaces.control.IFeatureStyleEditor;
+			import zdims.map.IMSMap;
+			import zdims.control.*;
+			import sjd.managers.ResizeManager;
+			import Mapgis7.WebService.BasLib.*;
+			import mx.events.FlexEvent;
+			import mx.controls.*;
+			import mx.containers.HBox;
+
+			private var _featureID:Number = 0;
+			private var _targetGeo:Object;
+			private var _attStruct:CAttStruct;
+			private var _stylebox:HBox = new HBox();
+			private var _featureStyle:WebGraphicsInfo;
+			private var _styleControl:IFeatureStyleEditor;
+			private var _featureGraphic:Array = new Array();
+			private var _pointCtrl:Array = new Array();
+			public var _layerDataViewer:LayerDataViewer;
+			
+			/**
+			 * 控件初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				ResizeManager.enableResize(this, 200);
+			}
+			/**
+			 * 设置编辑数据
+			 */ 
+			public function setTargetFeatureGeo(target:Object):void
+			{
+				_targetGeo = target;
+				this.visible = true;
+			}
+			/**
+			 * 设置属性结构
+			 */ 
+			public function setAttStruct(attStruct:CAttStruct):void
+			{
+				setAttStructAndValue(attStruct, null);
+			}
+			/**
+			 * 设置属性结构及属性字段值
+			 */ 
+			public function setAttStructAndValue(attStruct:CAttStruct, FIDAndValues:Array=null):void
+			{
+				clearFeaturePoint();
+				this.activeControl(null);
+				_attStruct = attStruct;
+				this.removeAllChildren();
+				this._stylebox.removeAllChildren();
+				this._featureStyle = null;
+				if (attStruct == null)
+					return;
+				//2.add each field
+				if (FIDAndValues != null && FIDAndValues.length > 0)
+				{
+					_featureID = FIDAndValues[0];
+				}
+				var fieldNum:int = attStruct.FldNumber;
+				for (var i:int = 0; i < fieldNum; i++)
+				{
+					var hbox:HBox = new HBox();
+					hbox.name = "hbox" + i;
+					hbox.percentWidth = 100;
+					var fldName:Label = new Label();
+					fldName.text = attStruct.FldName[i].toString().concat(": ");
+					fldName.width = 100;
+					var fldValue:TextInput = new TextInput();
+					fldValue.name = "fldvalue" + i;
+					if (FIDAndValues != null && FIDAndValues.length > i + 1)
+					{
+						fldValue.text = FIDAndValues[i + 1].toString();
+					}
+					fldValue.width = 100;
+					fldValue.toolTip = attStruct.FldType[i].toString().concat("类型");
+					hbox.addChild(fldName);
+					hbox.addChild(fldValue);
+					this.addChild(hbox);
+				}
+				//add style info
+
+				var style:DisplayObject;
+				var geoType:String="";
+
+				if (FIDAndValues == null)
+				{
+					geoType=IWebGeometry(this._targetGeo).GetGeomType();
+					switch (geoType)
+					{
+						case EWebGeomType.Point:
+							style=new PointStyle();
+							break;
+						case EWebGeomType.Line:
+							style=new LineStyle();
+							break;
+						case EWebGeomType.Polygon:
+							style=new PolygonStyle();
+							break;
+					}
+					_stylebox.addChild(style);
+					this._styleControl=style as IFeatureStyleEditor;
+					_stylebox.addChild(new Label());
+					_stylebox.addChild(new Label());
+					_stylebox=this.addChild(_stylebox) as HBox;
+				}
+				else
+				{
+					//get the layer geoType
+					var feature:CLayerGetByID=new CLayerGetByID();
+					feature.FeatureID=this._featureID;
+					feature.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+					feature.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+					_stylebox=this.addChild(_stylebox) as HBox;
+					this.imsmap.activeLayerObj.getGraphicInfo(feature, onGetStyle);
+				}
+				this._stylebox.percentWidth=100;
+				//3.add submit button and cancel button
+				var btnBox:HBox=new HBox();
+				var submitBtn:Button=new Button();
+				submitBtn.label="提交";
+				var closeBtn:Button=new Button();
+				closeBtn.addEventListener(MouseEvent.CLICK, this.onClose);
+				closeBtn.label="关闭";
+				if (FIDAndValues == null)
+				{
+					submitBtn.addEventListener(MouseEvent.CLICK, submitForAdd);
+					btnBox.addChild(submitBtn);
+				}
+				else
+				{
+					submitBtn.addEventListener(MouseEvent.CLICK, submitForEdit);
+					btnBox.addChild(submitBtn);
+					var moveBtn:Button=new Button();
+					moveBtn.label="移点";
+					moveBtn.addEventListener(MouseEvent.CLICK, movePoint);
+					btnBox.addChild(moveBtn);
+				}
+				btnBox.addChild(closeBtn);
+				var rule:HRule=new HRule();
+				rule.percentWidth=80;
+				this.addChild(rule);
+				this.addChild(btnBox);
+			}
+			/**
+			 * 根据要素id获取空间信息
+			 */ 
+			public function movePoint(e:Event):void
+			{
+				var getGeo:CLayerGetByID=new CLayerGetByID();
+				getGeo.FeatureID=this._featureID;
+				getGeo.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				getGeo.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomByFID(getGeo, drawFeaturePoint);
+			}
+			/**
+			 * 在地图上绘制要素信息
+			 */ 
+			public function drawFeaturePoint(e:Event):void
+			{
+				var geoObj:SFeatureGeometry=imsmap.activeLayerObj.onGetGeomByFID(e);
+				this._targetGeo=geoObj;
+				if (geoObj == null)
+					return;
+				clearFeaturePoint();
+				var pntGeoNum:int=geoObj.PntGeom.length;
+				var linGeoNum:int=geoObj.LinGeom.length;
+				var regGeoNum:int=geoObj.RegGeom.length;
+				if (pntGeoNum > 0)
+				{
+					for (var i:int=0; i < pntGeoNum; i++)
+					{
+						var dot:Dot_2D=GPoint(geoObj.PntGeom[i]).Dot;
+						this.addPoint("featurePoint-" + i, dot.x, dot.y, ESFclsGeomType.Pnt);
+					}
+				}
+				else if (linGeoNum > 0)
+				{
+					for (i=0; i < linGeoNum; i++)
+					{
+						var line:AnyLine=GLine(geoObj.LinGeom[i]).Line;
+						var aNum:int=line.Arcs.length;
+						for (var aIndex:int=0; aIndex < aNum; aIndex++)
+						{
+							var arc:Arc=line.Arcs[aIndex];
+							var dotNum:int=arc.Dots.length;
+							for (var j:int=0; j < dotNum; j++)
+							{
+								dot=Dot_2D(arc.Dots[j]);
+								this.addPoint("featurePoint-" + i + "-" + aIndex + "-" + j, dot.x, dot.y, ESFclsGeomType.Lin);
+							}
+						}
+					}
+				}
+				else if (regGeoNum > 0)
+				{
+					var circleNum:int=GRegion(geoObj.RegGeom[0]).Rings.length;
+					for (i=0; i < circleNum; i++)
+					{
+						var circle:AnyLine=AnyLine(GRegion(geoObj.RegGeom[0]).Rings[i]);
+						var arcnum:int=circle.Arcs.length;
+						for (var a:int=0; a < arcnum; a++)
+						{
+							var arcOfRing:Arc=circle.Arcs[a];
+							dotNum=arcOfRing.Dots.length;
+							for (j=0; j < dotNum; j++)
+							{
+								dot=Dot_2D(arcOfRing.Dots[j]);
+								this.addPoint("featurePoint-" + i + "-" + a + "-" + j, dot.x, dot.y, ESFclsGeomType.Reg);
+							}
+						}
+					}
+				}
+			}
+			/**
+			 * 清除要素信息
+			 */ 
+			public function clearFeaturePoint():void
+			{
+				var lastPntNum:int=this._pointCtrl.length;
+				if (lastPntNum > 0)
+				{
+					for (var p:int=0; p < lastPntNum; p++)
+					{
+						this._pointCtrl[p].visible=false;
+					}
+					this._pointCtrl=new Array();
+				}
+			}
+				/**
+			 * 添加点要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addPnt(e:Event):void
+			{
+				if(!checkActiveLayer()) return;
+				var setIdx:CSetLayerIndex=new CSetLayerIndex();
+				setIdx.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				setIdx.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomType(setIdx,checkPointType);
+			}
+			/**
+			 * 检查图层的类型
+			 */ 
+			private function checkPointType(e:Event):void
+			{
+				var data:CGetGeomTypeONFlex = this.imsmap.activeLayerObj.onGetGeomType(e);
+				if (data == null)
+				{
+					Alert.show("获取当前图层几何类型失败", "提示");
+					return;
+				}
+				if (data.GeomType != ESFclsGeomType.Pnt)
+				{
+					Alert.show("当前图层不能添加该几何类型的要素", "提示");
+					return;
+				}
+				onAddFeature(ESFclsGeomType.Pnt);
+			}
+			/**
+			 * 添加线要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addLine(e:Event):void
+			{
+				if(!checkActiveLayer()) return;
+				var setIdx:CSetLayerIndex=new CSetLayerIndex();
+				setIdx.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				setIdx.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomType(setIdx,checkLineType);
+			}
+			/**
+			 * 检查图层的类型
+			 */ 
+			private function checkLineType(e:Event):void
+			{
+				var data:CGetGeomTypeONFlex = this.imsmap.activeLayerObj.onGetGeomType(e);
+				if (data == null)
+				{
+					Alert.show("获取当前图层几何类型失败", "提示");
+					return;
+				}
+				if (data.GeomType != ESFclsGeomType.Lin)
+				{
+					Alert.show("当前图层不能添加该几何类型的要素", "提示");
+					return;
+				}
+				onAddFeature(ESFclsGeomType.Lin);
+			}
+			/**
+			 * 添加区要素处理事件
+			 * @param e
+			 *
+			 */
+			public function addPolygon(e:Event):void
+			{
+				if(!checkActiveLayer()) return;
+				var setIdx:CSetLayerIndex=new CSetLayerIndex();
+				setIdx.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				setIdx.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomType(setIdx,checkPolygonType);
+			}
+			/**
+			 * 检查图层的类型
+			 */ 
+			private function checkPolygonType(e:Event):void
+			{
+				var data:CGetGeomTypeONFlex = this.imsmap.activeLayerObj.onGetGeomType(e);
+				if (data == null)
+				{
+					Alert.show("获取当前图层几何类型失败", "提示");
+					return;
+				}
+				if (data.GeomType != ESFclsGeomType.Reg)
+				{
+					Alert.show("当前图层不能添加该几何类型的要素", "提示");
+					return;
+				}
+				onAddFeature(ESFclsGeomType.Reg);
+			}
+			/**
+			 * 检查是否有激活图层
+			 */ 
+			private function checkActiveLayer():Boolean
+			{
+				if(this.imsmap.activeLayerObj==null)
+				{
+					Alert.show("当前没有图层对象被激活！");
+					return false;
+				}
+				if(this.imsmap.activeLayerObj.activeGdbIndex<0||this.imsmap.activeLayerObj.activeLayerIndex<0)
+				{
+					Alert.show("当前没有图层被激活，请激活当前要操作的图层！");
+					return false;
+				}
+				return true;
+				
+			}
+			/**
+			 * 添加要素回调函数
+			 */ 
+			private function onAddFeature(geoType:String):void
+			{
+				var obj:Object;
+				switch (geoType)
+				{
+					case ESFclsGeomType.Pnt:
+						obj = this.imsmap.graphicCanvas.getSelectedDot();
+						break;
+					case ESFclsGeomType.Lin:
+						obj = this.imsmap.graphicCanvas.getSelectedLine();
+						break;
+					case ESFclsGeomType.Reg:
+						obj = this.imsmap.graphicCanvas.getSelectedPolygon();
+						break;
+					case ESFclsGeomType.Unknown:
+						Alert.show("当前激活图层几何类型未知", "提示");
+						return;
+						break;
+				}
+				if (obj == null)
+					return;
+		    	
+				this.visible=true;
+				this.setTargetFeatureGeo(obj);
+				this.getActiveLayerAttStruct();
+			}
+			/**
+			 * 获取激活图层的属性结构
+			 *
+			 */
+			private function getActiveLayerAttStruct():void
+			{
+				var obj:CSetLayerIndex = new CSetLayerIndex();
+				obj.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				obj.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getLayerAttStruct(obj, this.getAttStructCallBack);
+			}
+			/**
+			 * 获取属性结果回调函数
+			 */ 
+			private function getAttStructCallBack(e:Event):void
+			{
+				var attStru:CAttStruct = this.imsmap.activeLayerObj.onGetLayerAttStruct(e);
+				this.setAttStruct(attStru);
+			}
+			/**
+			 * 添加要素点
+			 */ 
+			public function addPoint(name:String, logicX:Number, logicY:Number, parentGeoType:String):void
+			{
+				var point:IMSPoint=new IMSPoint();
+				point.name=name;
+				point.logicX=logicX;
+				point.logicY=logicY;
+				point.updatePosition();
+				point.visible=true;
+				point.parentGeoType=parentGeoType;
+				point.addEventListener(MouseEvent.MOUSE_UP, onPntMouseUP);
+				this._pointCtrl[this._pointCtrl.length]=this.imsmap.addChild(point);
+			}
+			/**
+			 * 移动空间信息点
+			 */ 
+			public function onPntMouseUP(e:Event):void
+			{
+				var pnt:IMSPoint=IMSPoint(e.target);
+				var pntInfo:Array=pnt.name.split("-");
+				var dot:Dot_2D;
+				switch (pnt.parentGeoType)
+				{
+					case ESFclsGeomType.Pnt:
+						dot=Dot_2D(SFeatureGeometry(this._targetGeo).PntGeom[pntInfo[1]].Dot);
+						dot.x=pnt.logicX;
+						dot.y=pnt.logicY;
+						break;
+					case ESFclsGeomType.Lin:
+						dot=Dot_2D(GLine(SFeatureGeometry(this._targetGeo).LinGeom[pntInfo[1]]).Line.Arcs[pntInfo[2]].Dots[pntInfo[3]]);
+						dot.x=pnt.logicX;
+						dot.y=pnt.logicY;
+						break;
+					case ESFclsGeomType.Reg:
+						dot=Dot_2D(GRegion(SFeatureGeometry(this._targetGeo).RegGeom[0]).Rings[pntInfo[1]].Arcs[pntInfo[2]].Dots[pntInfo[3]]);
+						dot.x=pnt.logicX;
+						dot.y=pnt.logicY;
+						break;
+				}
+			}
+			/**
+			 * 获取样式信息回调函数
+			 */ 
+			public function onGetStyle(e:Event):void
+			{
+				var gInfo:WebGraphicsInfo=this.imsmap.activeLayerObj.onGetGraphicInfo(e);
+				if (gInfo == null)
+					return;
+				var style:DisplayObject;
+
+				this._featureStyle=gInfo;
+				switch (gInfo.InfoType)
+				{
+					case GInfoType.PntInfo:
+						style=new PointStyle();
+						PointStyle(style).setGraphicStyle(gInfo);
+						break;
+					case GInfoType.LinInfo:
+						style=new LineStyle();
+						LineStyle(style).setGraphicStyle(gInfo);
+						break;
+					case GInfoType.RegInfo:
+						style=new PolygonStyle();
+						PolygonStyle(style).setGraphicStyle(gInfo);
+						break;
+				}
+				if (style != null)
+				{
+					this._stylebox.addChild(style);
+					this._stylebox.addChild(new Label());
+					this._stylebox.addChild(new Label());
+				}
+				this._styleControl=IFeatureStyleEditor(style);
+			}
+			
+			/**
+			 * 添加要素触发函数
+			 */ 
+			private function submitForAdd(e:Event):void
+			{
+				var setLayerIdx:CSetLayerIndex=new CSetLayerIndex();
+				setLayerIdx.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				setLayerIdx.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomType(setLayerIdx,this.getTypeForAdd);
+			}
+			private function getTypeForAdd(e:Event):void
+			{
+				var geoType:CGetGeomTypeONFlex=this.imsmap.activeLayerObj.onGetGeomType(e);
+				if (!this.imsmap.existActiveLayerObj())
+					return;
+				var fIno:CAppendFeature=getMapFeatureInfo(geoType.GeomType);
+				if(fIno==null)
+					return;
+				this.imsmap.activeLayerObj.appendFeature(fIno, this.getEditOperResult);
+			}
+			/**
+			 * 编辑要素信息回调函数
+			 */ 
+			public function getEditOperResult(e:Event):void
+			{
+				var rlt:COperResult=this.imsmap.activeLayerObj.onAppendFeature(e);
+				if (rlt.OperResult == true)
+				{
+					this.imsmap.activeLayerObj.refresh();
+					Alert.show("操作成功", "提示");
+				}
+				else
+					Alert.show("操作失败，错误信息：" + rlt.ErrorInfo, "提示");
+			}
+			/**
+			 * 编辑触发函数
+			 */ 
+			private function submitForEdit(e:Event):void
+			{
+				var setLayerIdx:CSetLayerIndex=new CSetLayerIndex();
+				setLayerIdx.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				setLayerIdx.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				this.imsmap.activeLayerObj.getGeomType(setLayerIdx,this.getTypeForEdit);
+			}
+			private function getTypeForEdit(e:Event):void
+			{
+				var geoType:CGetGeomTypeONFlex=this.imsmap.activeLayerObj.onGetGeomType(e);
+				var fIno:CAppendFeature=getMapFeatureInfo(geoType.GeomType);
+				if(fIno==null)
+					return;
+				if (!this.imsmap.existActiveLayerObj())
+					return;
+					
+				this.imsmap.activeLayerObj.updateFeature(fIno, function(e:Event):void
+					{
+						onSubmitEdit(e, fIno)
+					});
+			}
+			/**
+			 * 编辑要素信息回调函数
+			 */ 
+			private function onSubmitEdit(e:Event, fInfo:CAppendFeature):void
+			{
+				var rlt:COperResult=this.imsmap.activeLayerObj.getResultObject(e, "COperResult") as COperResult;
+				if (rlt.OperResult)
+				{
+					Alert.show("修改属性成功", "提示");
+					this._layerDataViewer.updateRecord(fInfo.FSet.AttValue);
+				}
+				else
+					Alert.show("修改属性失败，错误信息：" + rlt.ErrorInfo, "提示");
+			}
+			/**
+			 * 获取要素信息
+			 */ 
+			public function getMapFeatureInfo(geoType:String):CAppendFeature
+			{
+				var fInfo:CAppendFeature=new CAppendFeature();
+				var sf:SFeature=new SFeature();
+				for (var i:int=0; i < _attStruct.FldNumber; i++)
+				{
+					sf.AttValue[i]=TextInput(HBox(this.getChildByName("hbox" + i)).getChildByName("fldvalue" + i)).text;
+					switch(this._attStruct.FldType[i])
+					{
+						case "double":
+							if(parseFloat(sf.AttValue[i]).toString()=="NaN")
+							{
+								Alert.show("字段【"+this._attStruct.FldName[i]+"】输入的数据格式不正确。请重新输入！", "提示");
+								return null;
+							}
+							break;
+						case "integer":
+						case "long":
+						case "short":
+							if(parseInt(sf.AttValue[i]).toString()=="NaN")
+							{
+								Alert.show("字段【"+this._attStruct.FldName[i]+"】输入的数据格式不正确。请重新输入！", "提示");
+								return null;
+							}
+							break;
+						default:
+							break;
+					}
+				}
+
+				var sfGeo:SFeatureGeometry=null;
+				var curFGeoType:String;
+
+				if (_targetGeo != null)
+				{
+					sfGeo=_targetGeo as SFeatureGeometry;
+					if (sfGeo == null) //add feature
+					{
+						sfGeo=new SFeatureGeometry();
+						switch (IWebGeometry(_targetGeo).GetGeomType())
+						{
+							case EWebGeomType.Point:
+								sf.ftype=ESFclsGeomType.Pnt;
+								var pnt:GPoint=new GPoint();
+								pnt.Dot=_targetGeo as Dot_2D;
+								sfGeo.PntGeom[0]=pnt;
+								break;
+							case EWebGeomType.Line:
+								sf.ftype=ESFclsGeomType.Lin;
+								var line:GLine=new GLine();
+								line.Line=_targetGeo as AnyLine;
+								sfGeo.LinGeom[0]=line;
+								break;
+							case EWebGeomType.Polygon:
+								sf.ftype=ESFclsGeomType.Reg;
+								var polygon:GRegion=new GRegion();
+								var circle:AnyLine=new AnyLine();
+								circle.Arcs[0].Dots=(_targetGeo as Polygon).Dots;
+								polygon.Rings[0]=circle;
+								sfGeo.RegGeom[0]=polygon;
+								break;
+							default:
+								sfGeo=null;
+								break;
+						}
+					}
+				}
+				curFGeoType=geoType
+				if (this._featureStyle == null)
+				{
+					this._featureStyle=new WebGraphicsInfo();
+				}
+				switch (curFGeoType)
+				{
+					case ESFclsGeomType.Pnt:
+						this._featureStyle.InfoType=GInfoType.PntInfo;
+						var newPntStyle:PointStyle=this._styleControl as PointStyle;
+						this._featureStyle.PntInfo=new CPointInfo();
+						this._featureStyle.PntInfo.Angle=parseFloat(newPntStyle.patternAngle.text);
+						this._featureStyle.PntInfo.Color=parseInt(newPntStyle.patternColor.text);
+						this._featureStyle.PntInfo.SymHeight=parseFloat(newPntStyle.patternHeight.text);
+						this._featureStyle.PntInfo.SymID=parseInt(newPntStyle.patternID.text);
+						this._featureStyle.PntInfo.SymWidth=parseFloat(newPntStyle.patternWidth.text);
+						break;
+					case ESFclsGeomType.Lin:
+						this._featureStyle.InfoType=GInfoType.LinInfo;
+						var newLineStyle:LineStyle=this._styleControl as LineStyle;
+						this._featureStyle.LinInfo=new CLineInfo();
+						this._featureStyle.LinInfo.Color=parseInt(newLineStyle.color.text);
+						this._featureStyle.LinInfo.LinStyleID=parseInt(newLineStyle.patternID.text);
+						this._featureStyle.LinInfo.LinStyleID2=parseInt(newLineStyle.patternID2.text);
+						this._featureStyle.LinInfo.LinWidth=parseFloat(newLineStyle.penWidth.text);
+						this._featureStyle.LinInfo.Xscale=parseFloat(newLineStyle.lineScaleX.text);
+						this._featureStyle.LinInfo.Yscale=parseFloat(newLineStyle.lineScaleY.text);
+						break;
+					case ESFclsGeomType.Reg:
+						this._featureStyle.InfoType=GInfoType.RegInfo;
+						var newRegStyle:PolygonStyle=this._styleControl as PolygonStyle;
+						this._featureStyle.RegInfo=new CRegionInfo();
+						this._featureStyle.RegInfo.FillColor=parseInt(newRegStyle.fillcolor.text);
+						this._featureStyle.RegInfo.PatColor=parseInt(newRegStyle.patternColor.text);
+						this._featureStyle.RegInfo.PatHeight=parseFloat(newRegStyle.patternHeight.text);
+						this._featureStyle.RegInfo.PatID=parseInt(newRegStyle.patternID.text);
+						this._featureStyle.RegInfo.OutPenWidth=parseFloat(newRegStyle.patternPenWidth.text);
+						this._featureStyle.RegInfo.PatWidth=parseFloat(newRegStyle.patternWidth.text);
+						break;
+				}
+
+				sf.fGeom=sfGeo;
+				sf.FID=_featureID;
+				fInfo.GInfo=this._featureStyle;
+				fInfo.FSet=sf;
+				fInfo.GdbIndex=this.imsmap.activeLayerObj.activeGdbIndex;
+				fInfo.LayerIndex=this.imsmap.activeLayerObj.activeLayerIndex;
+				return fInfo;
+			}
+			/**
+			 * 关闭窗口
+			 */ 
+			public function onClose(e:Event):void
+			{
+				super.close();
+				clearFeaturePoint();
+			}
+		]]>
+	</mx:Script>
+	<mx:Text text="您可以通过右键单击查询结果窗口中的记录然后选择[编辑]菜单来编辑某一条记录，也可以通过鼠标在地图上添加点、线或者区要素。"
+			 height="146"
+			 width="221"/>
+	<mx:Button label="关闭"
+			   click="onClose(event)"/>
+</IMSWindow>

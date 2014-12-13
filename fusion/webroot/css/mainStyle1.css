@@ -1,0 +1,334 @@
+html, body {
+	margin:0;
+	padding:0;
+	text-align:center;
+	font-family:微软雅黑 , 华文细黑;
+	font-size:12px;
+	height:680px;
+	background-color:#FFFFFF;
+}
+a {
+blr:expression(this.onFocus=this.blur());
+text-decoration:none;
+outline:none;
+}
+#header {
+	display:block;
+	margin:0 auto;
+	padding:0;
+	width:980px;
+	height:135px;
+	float:left;
+	background-image: url(/images/header_bg.jpg);
+}
+.headerList {
+	display:block;
+	margin: 15px 599px;
+	padding:0 80px;
+	width:380px;
+	float:left;
+	color: white;
+	list-style:none;
+}
+li.headerListSub {
+	display:block;
+	margin:8px 0px;
+	padding:0px;
+	width:300px;
+	height:25px;
+}
+#menu {
+	display:block;
+	margin:0;
+	padding:0;
+	float:left;
+	width:240px;
+	background-color:#003d7c;
+}
+#menu_sub {
+	display:block;
+	margin:5px auto;
+	padding:0;
+	width:220px;
+	height:580px;
+	background-color:#EAF9FF;
+}
+#menu_main_title {
+	display:block;
+	margin:0;
+	padding-top: 5px;
+	padding-left:80px;
+	width:220px;
+	height:30px;
+	background:url(/images/menu_head.png) no-repeat;
+	color:#FFF;
+	font-weight:bold;
+}
+#menu_main_list{
+	display:block;
+	margin:0;
+	padding:0;
+	width:220px;
+	height::550px;
+}
+
+			div.link{
+				width:140px;
+				height:20px;
+				margin-top:4px;
+				margin-bottom:4px;
+				background-image:url(../images/linkbg.png);
+			}
+			
+			div.link:hover{
+				background-image:url(../images/linkbg-mo.png);
+			}
+
+			.link a:hover{
+				color:#F60;
+				font-size:15px;
+			}
+			
+
+#container {
+	display:block;
+	margin:0;
+	padding:0;
+	width:738px;
+	height:580px;
+	float:left;
+	background-color:#003d7c;
+}
+#container_sub {
+	display:block;
+	margin:5px auto;
+	width:720px;
+	height:580px;
+	background-color:#EAF9FF;
+}
+#container_content {
+	margin:0px;
+	padding:0px;
+	width:100%;
+	height:550px;
+	background-color:#EAF9FF;
+	overflow:auto;
+	float:left;
+}
+#container_title {
+	display:block;
+	margin:0;
+	padding-top: 5px;
+	padding-left: 80px;
+	width:720px;
+	height:30px;
+	color:white;
+	font-weight:bold;
+	background-image: url(/images/container_title.png);
+	background-repeat: no-repeat;
+}
+#frame {
+	display:block;
+	margin:0 auto;
+	padding:0;
+	width:980px;
+	background-color:#003d7c;
+	height:680px;
+}
+/***************************
+	统一定义加粗样式
+	包括：
+			一级标题
+			二级标题
+			三级标题
+			单元格标题
+******************************/
+h1, h2, h3, th, caption {
+	font-weight:bolder;
+}
+h1 {
+	font-size:22pt;
+}
+h2, caption {
+	font-size:10.5pt;
+}
+h3 {
+	font-size:14pt;
+}
+/******************************
+	表格样式定义
+******************************/
+table.tabbg {
+	background-color:#000000;
+	margin-bottom: 25px;
+}
+table.loginTab {
+	width:1024px;
+	height:572px;
+	margin:0 auto;
+	padding:0;
+	background:url(/images/login.jpg) no-repeat;
+}
+caption {
+	padding-top:10px;
+	padding-bottom:10px;
+}
+th {
+	background-color:#1F8FDB;
+	color:white;
+}
+th.right_align {
+	text-align:right;
+}
+th.left_align {
+	text-align:left;
+}
+td.info_cell {
+	word-wrap:break-word;
+	word-break:break-all;
+	background-color:white;
+}
+td.right_align {
+	text-align:right;
+}
+td.center_align {
+	text-align:center;
+}
+/******************************
+	段落样式定义
+******************************/
+p {
+	margin-top:120%;
+	text-indent:2em;
+	word-wrap:break-word;
+	word-break:break-all;
+	line-height:150%;
+}
+/******************************
+	超链接样式定义
+	a:link		链接样式定义
+	a:hover		链接鼠标悬浮样式定义
+	a:visited	浏览后的链接样式定义
+******************************/
+/*a {
+	text-decoration:none;
+	cursor:pointer;
+}
+a:link {
+}
+a:hover {
+	text-decoration:underline;
+	color:red;
+}
+a:visted {
+ color:#EEEEEE;
+}*/
+/******************************
+	间隔符样式定义
+******************************/
+span.font025em {
+	padding-left:0.25em;
+}
+span.font05em {
+	padding-left:0.5em;
+}
+span.font067em {
+	padding-left:0.67em;
+}
+span.font10em {
+	padding-left:1em;
+}
+span.font15em {
+	padding-left:1.5em;
+}
+span.font20em {
+	padding-left:2em;
+}
+span.font30em {
+	padding-left:3em;
+}
+span.font40em {
+	padding-left:4em;
+}
+select.one {
+	width:160px;
+}
+.short {
+	width:160px;
+}
+.long {
+	width:96%;
+}
+textarea {
+	height:60px;
+	width:80%
+}
+.button {
+	width: 60px;
+	height: 20px;
+}
+caption div {
+	color: red;
+	font-size:10.5pt;
+}
+td div.msg {
+	color: red;
+	font-size:10.5pt;
+}
+h2.error_info {
+	color: red;
+}
+.datePick {
+	background:url(/images/calendar.gif) no-repeat top right;
+	cursor: default;
+}
+tr.history {
+	color:#FF00FF;
+}
+li {
+	list-style:none;
+}
+@media print {
+body {
+	font-size: 12pt;
+}
+input {
+	display:none;
+}
+textarea {
+	display:none;
+}
+select {
+	display:none;
+}
+#header {
+	display:none;
+}
+#menu {
+	display:none;
+}
+.opera {
+	display:none;
+}
+th, td {
+	color:#000000;
+	border:1px #000000 solid;
+	padding:5px;
+}
+table {
+	display:table;
+	padding:0px;
+	border:1px #000000 solid;
+}
+#container_title {
+	display:none;
+}
+#container_content {
+	overflow:auto;
+}
+caption {
+	font-size:14pt;
+}
+hr {
+	width:100%;
+}

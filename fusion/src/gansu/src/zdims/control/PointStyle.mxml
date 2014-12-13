@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 点的样式信息 -->
+<mx:Canvas implements="zdims.interfaces.control.IFeatureStyleEditor"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="211"
+		   height="186"
+		   fontSize="12"
+		   creationComplete="init()">
+	<mx:Label x="10"
+			  y="38"
+			  text="子图号："/>
+	<mx:Label x="11"
+			  y="68"
+			  text="子图宽："/>
+	<mx:TextInput id="patternWidth"
+				  x="64"
+				  y="66"
+				  text="10"
+				  width="138"/>
+	<mx:Label x="10"
+			  y="98"
+			  text="子图高："/>
+	<mx:TextInput id="patternHeight"
+				  x="63"
+				  y="96"
+				  text="10"
+				  width="138"/>
+	<mx:Label x="10"
+			  y="158"
+			  text="子图颜色："/>
+	<mx:TextInput id="patternAngle"
+				  x="64"
+				  y="126"
+				  text="0"
+				  width="138"/>
+	<mx:Label x="10"
+			  y="10"
+			  text="点要素参数设置:"
+			  width="102"
+			  color="#5164DD"/>
+	<mx:Label x="10"
+			  y="130"
+			  text="角度："
+			  height="20"/>
+	<mx:ComboBox id="patternColor"
+				 x="64"
+				 y="156"
+				 width="137"
+				 dataProvider="['1:黑色','175:红色','4:黄色','7:绿色','5:蓝色','3:紫色']"
+				 editable="true"
+				 change="setColor(this.patternColor)">
+	</mx:ComboBox>
+	<mx:ComboBox id="patternID"
+				 x="64"
+				 y="36"
+				 width="137"
+				 dataProvider="['514','515','516','517','518','519']"
+				 editable="true">
+	</mx:ComboBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.WebGraphicsInfo;
+			import Mapgis7.WebService.BasLib.GInfoType;
+			private var gInfo:WebGraphicsInfo;
+			/**
+			 * 获取样式信息的类型：点样式信息
+			 */ 
+			public function getFeatureGinfoType():String
+			{
+				return GInfoType.PntInfo;
+			}
+			/**
+			 * 设置样式信息
+			 */ 
+			public function setGraphicStyle(style:WebGraphicsInfo):void
+			{
+				this.gInfo = style;
+			}
+			/**
+			 * 窗口初始化函数
+			 */ 
+			public function init():void
+			{
+				if (gInfo == null)
+					return;
+				this.patternColor.text = gInfo.PntInfo.Color.toString();
+				this.patternHeight.text = gInfo.PntInfo.SymHeight.toString();
+				this.patternAngle.text = gInfo.PntInfo.Angle.toString();
+				this.patternID.text = gInfo.PntInfo.SymID.toString();
+				this.patternWidth.text = gInfo.PntInfo.SymWidth.toString();
+			}
+			/**
+			 * 设置颜色
+			 */ 
+			public function setColor(list:ComboBox):void
+			{
+				list.text = list.text.split(":")[0];
+			}
+		]]>
+	</mx:Script>
+</mx:Canvas>

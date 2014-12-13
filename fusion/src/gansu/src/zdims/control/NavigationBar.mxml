@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 地图导航器（实现地图放大缩小移动操作） -->
+<mx:Canvas implements="zdims.interfaces.control.INavigationBar"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:filters="flash.filters.*"
+		   alpha=".8"
+		   x="20"
+		   y="50" mouseDown="onMousDown(event)"
+		   width="74"
+		   height="316">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.controls.sliderClasses.SliderThumb;
+			import mx.events.SliderEvent;
+			
+			import zdims.event.IMSMapEvent;
+			import zdims.map.IMSMap;
+			private var _map:IMSMap;
+			
+			private function onMousDown(e:MouseEvent):void
+			{
+				e.stopPropagation();
+				if(_map==null)
+				{
+					imsmap=this.parent as IMSMap;
+				}
+			}
+
+			[Inspectable(category="MapGisIMS")]
+			public function set imsmap(m:IMSMap):void
+			{
+				if(m!=null)
+				{
+					this.imsvslider.maximum = m.levelNum - 1;
+					this.imsvslider.value=m.curMapLevel;
+					this.imsvslider.addEventListener(SliderEvent.CHANGE, onChangeLevel);
+					m.addEventListener(IMSMapEvent.MAP_CHANGE,onMapChange);					
+				}
+				this._map=m;
+			}
+
+			[Inspectable(category="MapGisIMS")]
+			public function get imsmap():IMSMap
+			{
+				if(_map==null)
+				{
+					imsmap=this.parent as IMSMap;
+				}
+				return this._map;
+			}
+			/**
+			 * 放大操作
+			 */ 
+			private function onZoomIn():void
+			{
+				if (imsmap.getLevel() >= imsmap.levelNum - 1)
+				{
+					Alert.show("已放大到最大级别", "提示");
+					return;
+				}
+				imsmap.setLevel(imsmap.getLevel()+1);
+			}
+			/**
+			 * 缩小操作
+			 */ 
+			private function onZoomOut():void
+			{
+				if (imsmap.getLevel() <= 0)
+				{
+					Alert.show("已缩小到最小级别", "提示");
+					return;
+				}
+				imsmap.setLevel(imsmap.getLevel()-1);
+			}
+			/**
+			 * 级数信息
+			 */ 
+			public function tipFormat(value:Number):String
+			{
+				return "第" + value.toString() + "级";
+			}
+			/**
+			 * 设置级数
+			 */ 
+			public function onChangeLevel(evt:Event):void
+			{
+				imsmap.setLevel(SliderEvent(evt).value);
+			}
+			/**
+			 * 刷新地图
+			 */ 
+			public function onRefresh():void
+			{
+				imsmap.refresh();
+			}
+			/**
+			 * 移动地图
+			 */ 
+			public function onMove(directX:int, directY:int):void
+			{
+				var tmp:Point = imsmap.screenToLogic(imsmap.width / 2 + 256 * directX, imsmap.height / 2 + 256 * directY);
+				this.imsmap.panTo(tmp.x, tmp.y);
+			}
+			public function onMapChange(e:IMSMapEvent):void
+			{
+				var curLvl:int=this.imsmap.getLevel();
+				this.imsvslider.value=curLvl>-1?curLvl:0;
+			}
+			
+			protected override function initializationComplete():void
+			{
+				super.initializationComplete();
+				if(_map==null&&this.parent is IMSMap)
+				{
+					imsmap=this.parent as IMSMap;
+				}
+			}
+		]]>
+	</mx:Script>
+
+	<mx:Image x="8"
+			  y="5"
+			  id="north"
+			  source="image/navigator/up.gif"
+			  toolTip="上移"
+			  buttonMode="true"
+			  click="onMove(0,1)"/>
+	<mx:Image x="8"
+			  y="42"
+			  id="south"
+			  source="image/navigator/down.gif"
+			  toolTip="下移"
+			  buttonMode="true"
+			  click="onMove(0,-1)"/>
+	<mx:Image x="45"
+			  y="26"
+			  id="east"
+			  source="image/navigator/right.gif"
+			  toolTip="右移"
+			  buttonMode="true"
+			  click="onMove(-1,0)"/>
+	<mx:Image x="8"
+			  y="26"
+			  id="west"
+			  source="image/navigator/left.gif"
+			  toolTip="左移"
+			  buttonMode="true"
+			  click="onMove(1,0)"/>
+	<mx:Image x="28"
+			  y="26"
+			  id="refresh"
+			  source="image/navigator/refresh.gif"
+			  toolTip="刷新"
+			  buttonMode="true"
+			  click="onRefresh()"/>
+	<mx:Image x="28"
+			  y="76"
+			  id="zoomin"
+			  source="image/navigator/add.png"
+			  toolTip="放大"
+			  buttonMode="true"
+			  click="onZoomIn()"/>
+	<mx:Image x="28"
+			  y="288"
+			  id="zoomout"
+			  source="image/navigator/sub.png"
+			  toolTip="缩小"
+			  buttonMode="true"
+			  click="onZoomOut()"/>
+	<mx:VSlider useHandCursor="true"
+				buttonMode="true"
+				id="imsvslider"
+				x="26"
+				y="92"
+				showTrackHighlight="false"
+				minimum="0"
+				tickInterval="1"
+				liveDragging="false"
+				snapInterval="1"
+				allowTrackClick="true"
+				dataTipFormatFunction="tipFormat"
+				height="199">
+		<mx:creationComplete>
+			<![CDATA[
+				import mx.controls.HSlider;
+				import mx.core.UIComponent;
+				
+				var slider:VSlider = event.target as VSlider;
+				var thumb:SliderThumb = slider.getThumbAt(0);
+				thumb.width = 13;
+				thumb.height = 18;
+				slider.invalidateDisplayList();
+			]]>
+		</mx:creationComplete>
+	</mx:VSlider>
+
+
+</mx:Canvas>
+

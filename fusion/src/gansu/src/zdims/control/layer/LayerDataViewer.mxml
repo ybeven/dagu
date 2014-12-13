@@ -1,0 +1,764 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 图层查询结果窗口 -->
+<IMSWindow xmlns="zdims.control.*"
+		   implements="zdims.interfaces.control.ILayerDataViewer"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="534"
+		   height="278"
+		   title="图层查询结果" creationComplete="init()" >
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.*;
+			
+			import flash.profiler.showRedrawRegions;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DataGrid;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.controls.dataGridClasses.DataGridItemRenderer;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import sjd.managers.ResizeManager;
+			
+			import zdims.control.BufferAnalyse;
+			import zdims.control.Chart;
+			import zdims.control.IMSCatalog;
+			import zdims.draw.IMSCanvas;
+			import zdims.event.IMSMapEvent;
+			import zdims.interfaces.control.*;
+			import zdims.map.VectorLayer;
+			import zdims.util.RectBound;
+			
+			private var _lastActiveLayerObj:VectorLayer;
+			private var _recordCountPerPage:int=20;
+			private var _lastSelRlt:CLayerSelectAndGetAtt;
+			private var _layerName:String;
+			private var _lastPageCount:int=0;
+			private var _lastSelectParam:CLayerSelectParam;
+			private var _lastPage:int;
+			private var _vLayer:VectorLayer;
+			private var _lastSelDataGrid:DataGrid;
+			private var _lastSelRowIndex:int=0;
+			private var _editControl:LayerEditor;
+			private var openLayer:COpenLayer;
+			private var _featureGeo:SFeatureGeometry;
+			private var objByID:CLayerGetByID=null;
+			
+			[Inspectable(category="MapGisIMS")]
+			public var enableClickFlash:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var enableContextMenu:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var enableFlashFirst:Boolean=false;
+			[Inspectable(category="MapGisIMS")]
+			public var enableLinkage:Boolean=true;
+			[Inspectable(category="MapGisIMS")]
+			public var catalog:IMSCatalog;
+			[Inspectable(category="MapGisIMS")]
+			public var bufferControl:BufferAnalyse;
+			
+			private var _charCtrl:Chart;
+			
+			[Inspectable(category="MapGisIMS")]
+			public function set editControl(editorCtrl:LayerEditor):void
+			{
+				this._editControl=editorCtrl;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get editControl():LayerEditor
+			{
+				return this._editControl;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function set chartCtrl(chart:Chart):void
+			{
+				this._charCtrl=chart;
+			}
+			[Inspectable(category="MapGisIMS")]
+			public function get chartCtrl():Chart
+			{
+				return this._charCtrl;
+			}
+			/**
+			 * 窗口初始化
+			 */ 
+			public override function init():void
+			{
+				super.init();
+				this.imsmap.addEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				ResizeManager.enableResize(this,200);
+			}
+			private function onOperTypeChange(e:Event):void
+			{
+				this.openLayer=null;
+//				this.imsmap.removeEventListener(IMSMapEvent.MAP_OPERTYPECHANGE,onOperTypeChange);
+				this._layerName="";
+			}
+			/**
+			 * 图层查询
+			 * @param geoObj 查询空间范围对象
+			 * @param selType 查询类型
+			 * @param page 结果记录页码
+			 * @param condition 查询条件
+			 * @param callback 结果处理函数
+			 *
+			 */
+			private function select(geoObj:Object, selType:String, page:int, condition:String="", callback:Function=null):void
+			{
+				if (!this.imsmap.existActiveLayerObj())
+				{
+					return;
+				}
+				if (callback == null)
+				{
+					callback = this.selectCallback;
+				}
+				var mapsel:CLayerSelectParam = new CLayerSelectParam();
+				var websel:CWebSelectParam = new CWebSelectParam();
+				websel.CompareRectOnly = this.imsmap.activeLayerObj.compareRectOnly;
+				websel.Geometry = geoObj;
+				if (geoObj != null)
+				{
+					websel.GeomType = IWebGeometry(geoObj).GetGeomType();
+				}
+				websel.MustInside = this.imsmap.activeLayerObj.mustInside;
+				websel.NearDistance = this.imsmap.activeLayerObj.nearDistanse;
+				websel.SelectionType = selType;
+				websel.WhereClause = condition;
+				mapsel.WebSelectParam = websel;
+				mapsel.PageCount = page;
+				this.setLastSelectParam(mapsel);
+				this.imsmap.activeLayerObj.layerSelectAndGetAtt(mapsel, callback);
+				
+			}
+		
+			/**
+			 * 点击查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPoint(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedDot(), ESelectionType.SpatialRange, 0);
+			}
+			/**
+			 * 线查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByLine(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedLine(), ESelectionType.SpatialRange, 0);
+			}
+			/**
+			 * 多边形查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByPolygon(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedPolygon(), ESelectionType.SpatialRange, 0);
+			}
+			
+			/**
+			 * 矩形查询
+			 * @param e
+			 *
+			 */
+			public function selectByRect(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedRect(), ESelectionType.SpatialRange, 0);
+			}
+			/**
+			 * 圆查询处理事件
+			 * @param e
+			 *
+			 */
+			public function selectByCircle(e:Event):void
+			{
+				select(this.imsmap.graphicCanvas.getSelectedCircle(), ESelectionType.SpatialRange, 0);
+			}
+			/**
+			 * 显示图层数据记录集合
+			 */ 
+			public function showLayerAttRecord(layerName:String, layerType:String, svrAddr:String="127.0.0.1:5141",gdbSvr:String="MapGisLocal", gdbName:String="IMSWebGISGDB", usr:String="", psw:String=""):void
+			{
+				_layerName=layerName;
+				var layerAccessInfo:CLayerAccessInfo=new CLayerAccessInfo();
+				layerAccessInfo.GdbInfo.GDBName=gdbName;
+				layerAccessInfo.GdbInfo.GDBSvrName=gdbSvr;
+				layerAccessInfo.GdbInfo.User=usr;
+				layerAccessInfo.GdbInfo.Password=psw;
+				var layerInfo:CLayerInfo=new CLayerInfo();
+				layerInfo.LayerDataName=layerName;
+				layerInfo.LayerType=layerType;
+				layerAccessInfo.LayerInfoList[0]=layerInfo;
+				openLayer=new COpenLayer()
+				openLayer.LayerAccessInfo[0]=layerAccessInfo;
+				this._vLayer=new VectorLayer();
+				this._vLayer.serverAddress=svrAddr;
+				this.imsmap.addChild(this._vLayer);
+				this._vLayer.loadLayer(openLayer, onSingleLayerLoad);
+				this.addEventListener(CloseEvent.CLOSE, onclose);
+				this.visible=true;
+//				PopUpManager.addPopUp(this, this.imsmap, true);
+//				PopUpManager.centerPopUp(this);
+			}
+			/**
+			 * 加载图层结果处理函数
+			 * @param e 请求事件
+			 *
+			 */
+			public function onSingleLayerLoad(e:Event):void
+			{
+				this.imsmap.activeLayerObj=this._vLayer;
+				var rlt:COperResult=this._vLayer.onLoadLayer(e);
+				if (rlt.OperResult)
+				{
+					//设置图层状态为可查询
+					if(this.catalog!=null)
+					{
+						this._vLayer.activeGdbIndex=0;
+						this._vLayer.activeLayerIndex=0;
+						this.catalog.imstree.addVectorLayerNode(this._vLayer);
+					}
+					var setLayerState:CSetSingleLayerStatusONFlex=new CSetSingleLayerStatusONFlex();
+					setLayerState.GdbIndex=0;
+					setLayerState.LayerIndex=0;
+					setLayerState.LayerStatus=EnumLayerStatus.Editable;
+					this._vLayer.setSingleLayerStatusONFlex(setLayerState, onSetSingleLayerStatus);
+				}
+				else
+				{
+					Alert.show(rlt.ErrorInfo);
+				}
+			}
+			/**
+			 * 设置单图层的状态回调函数
+			 */ 
+			public function onSetSingleLayerStatus(e:Event):void
+			{
+				var rlt:COperResult=this._vLayer.onSetAllEnumLayerStatus(e);
+				if (rlt.OperResult)
+				{
+					var mapsel:CLayerSelectParam = new CLayerSelectParam();
+					var selObj:CWebSelectParam=new CWebSelectParam();
+					selObj.SelectionType=ESelectionType.Condition;
+					selObj.WhereClause="";
+					mapsel.WebSelectParam=selObj;
+					this._lastSelectParam=mapsel;
+					this._vLayer.layerSelectAndGetAtt(mapsel, onLayerSelect);
+					this._lastPage=0;
+				}
+				else
+				{
+					Alert.show(rlt.ErrorInfo);
+				}
+			}
+			/**
+			 * 关闭回调函数
+			 */ 
+			public function onclose(e:Event):void
+			{
+//				PopUpManager.removePopUp(this);
+			}
+			/**
+			 * 查询回调函数
+			 */ 
+			public function onLayerSelect(e:Event):void
+			{
+				this.showResult(this._vLayer.onLayerSelectAndGetAtt(e));
+			}
+			/**
+			 * 获取结果记录集回调函数
+			 */ 
+			public function onGetAttSet(e:Event):void
+			{
+				if(this.openLayer==null)
+					this.showResult(this.imsmap.activeLayerObj.onLayerSelectAndGetAtt(e));
+				else
+					this.showResult(this._vLayer.onLayerSelectAndGetAtt(e));
+			}
+			/**
+			 * 显示查询结果
+			 */ 
+			public function showResult(selRlt:CLayerSelectAndGetAtt):void
+			{
+				if (selRlt == null)
+					return;
+				this.activeControl(null);
+				setPageCount(selRlt);
+				_lastSelRlt=selRlt;
+				this.visible=true;
+				var attdsNum:int=selRlt.AttDS.length;
+				this.tabContol.removeAllChildren();
+				for (var n:int=0; n < attdsNum; n++)
+				{
+					var tblNum:int=selRlt.AttDS[n].attTables.length;
+					for (var i:int=0; i < tblNum; i++)
+					{
+						var layStatus:String="";
+						if(this.openLayer==null)
+							layStatus=this.imsmap.activeLayerObj.LayerStatus[n][i];
+						else
+							layStatus=this._vLayer.LayerStatus[n][i];
+						if(layStatus==EnumLayerStatus.Invisiable||layStatus==EnumLayerStatus.Visiable)
+							continue;
+						var tabPage:Canvas=new Canvas();
+						if(this._layerName=="")
+						{
+							var layerAccessInfo:CLayerAccessInfo=this.imsmap.activeLayerObj.layerObj.LayerAccessInfo[n];
+							tabPage.label=CLayerInfo(layerAccessInfo.LayerInfoList[i]).LayerDataName;
+						}
+						else
+							tabPage.label=this._layerName;
+						var attRows:Array=CAttDataTable(selRlt.AttDS[n].attTables[i]).Rows;
+						var rowLen:int=attRows.length;
+						var rows:ArrayCollection=new ArrayCollection();
+						for (var j:int=0; j < rowLen; j++)
+						{
+							var fid:Array=new Array();
+							fid[0]=CAttDataRow(attRows[j]).FID;
+							var rowArray:Array=fid.concat(CAttDataRow(attRows[j]).Values);
+							rows.addItem(rowArray);
+						}
+						var dg:DataGrid=new DataGrid();
+						dg.id="datagrid_" + n.toString() + "_" + i.toString();
+						var cols:Array=CAttDataTable(selRlt.AttDS[n].attTables[i]).Columns.FldName;
+						var colLen:int=cols.length;
+						for (var k:int=0; k <= colLen; k++)
+						{
+							var col:DataGridColumn=new DataGridColumn();
+							col.headerText=k == 0 ? "FID" : cols[k - 1];
+							col.dataField=k.toString();
+							dg.columns=dg.columns.concat(col);
+						}
+						dg.dataProvider=rows;
+						dg.doubleClickEnabled=true;
+						dg.addEventListener(MouseEvent.CLICK, onClick);
+						if (enableContextMenu)
+							dg.contextMenu=getContexMenu(n,i);
+						tabPage.addChild(dg);
+						this.tabContol.addChild(tabPage);
+					}
+				}
+			}
+			/**
+			 * 设置右键
+			 */ 
+			private function getContexMenu(gdbIndex:int,layerIndex:int):ContextMenu
+			{
+				var menu:ContextMenu=new ContextMenu();
+				if (this.imsmap.activeLayerObj!=null&&this.imsmap.activeLayerObj.activeGdbIndex == gdbIndex&&this.imsmap.activeLayerObj.activeLayerIndex == layerIndex)
+				{
+					var delItem:ContextMenuItem=new ContextMenuItem("删除");
+					delItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, deleteFeature);
+					var editItem:ContextMenuItem=new ContextMenuItem("编辑");
+					editItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, editFeature);
+					var bufferItem:ContextMenuItem=new ContextMenuItem("缓冲分析");
+					bufferItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, bufferFeature);
+					menu.customItems.push(editItem, delItem, bufferItem);
+//					menu.customItems.push(editItem, delItem);
+				}
+				var charItem:ContextMenuItem=new ContextMenuItem("统计图");
+				charItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onChart);
+				menu.customItems.push(charItem);
+				menu.hideBuiltInItems();
+				return menu;
+			}
+			/**
+			 * 统计图回调函数
+			 */ 
+			public function onChart(e:ContextMenuEvent):void
+			{
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				var tblgdbIndex:int=int(dg.id.split("_")[1]);
+				var tblIndex:int=int(dg.id.split("_")[2]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[tblgdbIndex]).attTables[tblIndex]);
+				if (this.chartCtrl == null)
+				{
+					Alert.show("未找到统计图控件。", "提示");
+					return;
+				}
+				UIComponent(this.chartCtrl).visible=true;
+				this.chartCtrl.setDataProvider(curRltTable);
+			}
+			/**
+			 * 删除要素触发函数
+			 */ 
+			public function deleteFeature(e:ContextMenuEvent):void
+			{
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+				var tblgdbIndex:int=int(dg.id.split("_")[1]);
+				var tblIndex:int=int(dg.id.split("_")[2]);
+				var getGeo:CLayerGetByID=new CLayerGetByID();
+				getGeo.FeatureID=tagetData[0];
+				getGeo.GdbIndex=tblgdbIndex;
+				getGeo.LayerIndex=tblIndex;
+				Alert.okLabel="确定";
+				Alert.cancelLabel="取消";
+				Alert.show("你真的要删除吗？执行后将不能撤消！", "删除确认", Alert.OK | Alert.CANCEL, this, function(e:CloseEvent):void
+					{
+						onAlert(e, getGeo)
+					}, null, Alert.CANCEL);
+			}
+			/**
+			 * 删除要素
+			 */ 
+			public function onAlert(e:CloseEvent, getGeo:CLayerGetByID):void
+			{
+				if (e.detail == Alert.OK)
+				{
+					if (!this.imsmap.existActiveLayerObj())
+						return;
+					this.imsmap.activeLayerObj.deleteFeature(getGeo, onDeleteFeature);
+				}
+			}
+			/**
+			 * 删除要素回调函数
+			 */ 
+			public function onDeleteFeature(e:Event):void
+			{
+				var rlt:COperResult=this.imsmap.activeLayerObj.getResultObject(e, "COperResult") as COperResult;
+				if (rlt.OperResult)
+				{
+					this.imsmap.activeLayerObj.refresh();
+					(this._lastSelDataGrid.dataProvider as ArrayCollection).removeItemAt(this._lastSelRowIndex);
+					Alert.show("删除成功", "提示");
+				}
+				else
+					Alert.show("删除失败，错误信息：" + rlt.ErrorInfo, "提示");
+			}
+			/**
+			 * 缓冲区分析
+			 */ 
+			public function bufferFeature(e:ContextMenuEvent):void
+			{
+				if(this.bufferControl==null)
+				{
+					Alert.show("bufferControl属性为NULL,请赋值！","提示");
+					return;
+				}
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+				var tblgdbIndex:int=int(dg.id.split("_")[1]);
+				var tblIndex:int=int(dg.id.split("_")[2]);
+				objByID=new CLayerGetByID();
+				objByID.GdbIndex=tblgdbIndex;
+				objByID.LayerIndex=tblIndex;
+				objByID.FeatureID=tagetData[0];
+				var index:CSetLayerIndex=new CSetLayerIndex();
+				index.GdbIndex=tblgdbIndex;
+				index.LayerIndex=tblIndex;
+				this.imsmap.activeLayerObj.getLayerAttStruct(index,getAttStruct);
+			}
+			public function getAttStruct(e:Event)
+			{
+				var attStruct:CAttStruct=this.imsmap.activeLayerObj.onGetLayerAttStruct(e);
+				this.bufferControl.setTargetAttStruct(attStruct);
+				this.imsmap.activeLayerObj.getFeatureByFID(objByID,getSfeature);
+			}
+			public function getSfeature(e:Event)
+			{
+				var sfeature:SFeature=this.imsmap.activeLayerObj.onGetFeatureByFID(e);
+				var sfeatureArr:Array=new Array();
+				sfeatureArr[0]=sfeature.fGeom;
+				var attdataRow:Array=new Array();
+				attdataRow[0]=new CAttDataRow();
+				CAttDataRow(attdataRow[0]).Values=sfeature.AttValue;
+				this.bufferControl.setTargetGeometry(sfeatureArr);
+				this.bufferControl.setTargetAttDataRow(attdataRow);
+				this.bufferControl.imsmap=this.imsmap;
+				this.bufferControl.bufferLayerByGeom();
+				this.bufferControl.visible=true;
+			}
+			/**
+			 * 编辑要素回调函数
+			 */ 
+			public function editFeature(e:ContextMenuEvent):void
+			{
+				//transfer the field to the editcontrol
+				var itemRender:DataGridItemRenderer=e.mouseTarget as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=itemRender.owner as DataGrid;
+				if (dg == null)
+					return;
+				_lastSelDataGrid=dg;
+				_lastSelRowIndex=itemRender.listData.rowIndex+dg.verticalScrollPosition;
+
+				var tblgdbIndex:int=int(dg.id.split("_")[1]);
+				var tblIndex:int=int(dg.id.split("_")[2]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[tblgdbIndex]).attTables[tblIndex]);
+				var values:Array=(this._lastSelDataGrid.dataProvider as ArrayCollection).getItemAt(_lastSelRowIndex) as Array;
+
+				var window:UIComponent;
+				var firstCreate:Boolean = true;
+				if (this._editControl == null)
+				{
+					this._editControl=new LayerEditor();
+				}
+				else
+				{
+					firstCreate = false;
+				}
+				window=this._editControl; 
+				if (firstCreate)
+				{
+					IMSWindow(window).imsmap = this.imsmap;
+					window = this.imsmap.addChildAt(window, this.imsmap.getChildren().length) as UIComponent;
+					window.x = (this.imsmap.width - window.width) / 2;
+					window.y = (this.imsmap.height - window.height) / 2;
+					ResizeManager.enableResize(window, 50);
+				}
+				else
+					window.visible=true;
+				this._editControl._layerDataViewer=this;
+			    this._editControl.setTargetFeatureGeo(null);
+				this._editControl.setAttStructAndValue(curRltTable.Columns, tagetData); 
+			}
+			/**
+			 * 单击事件回调函数
+			 */ 
+			public function onClick(e:MouseEvent):void
+			{
+				var itemRender:DataGridItemRenderer=e.target as DataGridItemRenderer;
+				if (itemRender == null)
+					return;
+				var tagetData:Array=itemRender.data as Array;
+				if (tagetData == null)
+					return;
+				var dg:DataGrid=e.currentTarget as DataGrid;
+				if (dg.selectedItem == null)
+					return;
+
+				var tblgdbIndex:int=int(dg.id.split("_")[1]);
+				var tblIndex:int=int(dg.id.split("_")[2]);
+				var curRltTable:CAttDataTable=CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[tblgdbIndex]).attTables[tblIndex]);
+				var filedNum:int=curRltTable.Columns.FldNumber;
+				var rowValues:Array=dg.selectedItems[0].toString().split(",");
+				if (enableClickFlash)
+				{
+					//flash the feature when click the record
+					if (this.imsmap.cursorManager.currentCursorID > 0)
+					{
+						Alert.show("正在处理上一步操作，请稍候！");
+						return;
+					}
+					var getGeo:CLayerGetByID=new CLayerGetByID();
+					getGeo.FeatureID=rowValues[0];
+					getGeo.GdbIndex=tblgdbIndex;
+					getGeo.LayerIndex=tblIndex;
+					if(this.openLayer==null)
+					{
+						this.imsmap.activeLayerObj.getGeomByFID(getGeo, flashFeature);
+					}
+					else
+					{
+						this._vLayer.getGeomByFID(getGeo, flashFeature);
+					}
+				}
+			}
+			/**
+			 * 闪烁要素
+			 */ 
+			public function flashFeature(e:Event):void
+			{
+				this._featureGeo=imsmap.activeLayerObj.onGetGeomByFID(e);
+				if (this._featureGeo == null)
+					return;
+				if (enableLinkage)
+				{
+					//jump the map to show the feature
+					var fRect:Array=this.imsmap.graphicCanvas.flashGeo(this._featureGeo, false,false);
+					var centerx:Number=(fRect[0] + fRect[2]) / 2;
+					var centery:Number=(fRect[1] + fRect[3]) / 2;
+					//if (this.imsmap.cenPntLogCoor.x != centerx || this.imsmap.cenPntLogCoor.y != centery)
+					if(!this.imsmap.winViewBound.contains(centerx,centery))
+					{
+						this.imsmap.addEventListener(IMSMapEvent.MAP_MOVEOVER,onPanEnd);
+						var rect:RectBound=new RectBound(imsmap.winViewBound.xMin-imsmap.winViewBound.pX,
+															imsmap.winViewBound.yMin-imsmap.winViewBound.pY,
+															imsmap.winViewBound.xMax+imsmap.winViewBound.pX,
+															imsmap.winViewBound.yMax+imsmap.winViewBound.pY)
+						if(rect.contains(centerx,centery))	
+							imsmap.panTo(centerx, centery);
+						else
+							imsmap.setCenter(centerx, centery,imsmap.curMapLevel);
+					}
+					else
+						this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+				}
+				else
+					this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+			}
+			/**
+			 * 定位闪烁
+			 */ 
+			public function onPanEnd(e:Event):void
+			{
+				if(this._featureGeo!=null)
+					this.imsmap.graphicCanvas.flashGeo(this._featureGeo);
+				this.imsmap.removeEventListener(IMSMapEvent.MAP_MOVEOVER,onPanEnd);
+			}
+			/**
+			 * 设置查询结果的页数
+			 */ 
+			private function setPageCount(attSet:CLayerSelectAndGetAtt):void
+			{
+				if (attSet.Count == null || (attSet.Count[0] as Array) == null || (attSet.Count[0] as Array).length == 0)
+				{
+					this._lastPageCount=0;
+					return;
+				}
+				var countArr:Array=(attSet.Count as Array);
+				var maxCount:int=0;
+				for (var i:int=0; i < countArr.length; i++)
+				{
+					var count:Array=(attSet.Count[i] as Array);
+					for (var j:int=0; j < count.length; j++)
+					{
+						maxCount=Math.max(maxCount, count[j]);
+					}
+				}
+				maxCount=Math.ceil(maxCount / this._recordCountPerPage);
+				this._lastPageCount=maxCount;
+				this.totalPage.text="共" + maxCount + "页";
+				//设置完页码后获取首页记录
+//				if(this._vLayer!=null)
+//					this._vLayer.getAttSelectSet(0, onGetAttSet);
+			}
+			/**
+			 * 根据页数获取结果
+			 */ 
+			public function getResultByPage(page:int):void
+			{
+				if (this._lastSelectParam == null)
+					return;				
+				page=page > this._lastPageCount ? this._lastPageCount : page;
+				page=page < 1 ? 1 : page;
+				this.pageNum.text=page.toString();
+				this._lastPage=page - 1;
+				this._lastSelectParam.PageCount=this._lastPage;
+				if(this.openLayer==null)
+					this.imsmap.activeLayerObj.layerSelectAndGetAtt(this._lastSelectParam, this.onGetAttSet);
+				else
+					this._vLayer.layerSelectAndGetAtt(this._lastSelectParam, this.onGetAttSet);
+			}
+			/**
+			 * 设置上次查询参数对象
+			 */ 
+			public function setLastSelectParam(param:CLayerSelectParam):void
+			{
+				this._lastSelectParam=param;
+				this.pageNum.text="1";
+				this._lastPageCount=0;
+			}
+			/**
+			 * 更新编辑的记录
+			 * @param fieldValues 更新后的属性值数组
+			 * 
+			 */		
+			public function updateRecord(fieldValues:Array):void
+			{
+				var rowValue:Array=(_lastSelDataGrid.dataProvider as ArrayCollection).getItemAt(_lastSelRowIndex) as Array;
+				var newValue:Array=new Array();
+				newValue[0]=rowValue[0];
+				newValue=newValue.concat(fieldValues);
+				var tblgdbIndex:int=int(_lastSelDataGrid.id.split("_")[1]);
+				var tblIndex:int=int(_lastSelDataGrid.id.split("_")[2]);
+				CAttDataRow(CAttDataTable(CAttDataSet(_lastSelRlt.AttDS[tblgdbIndex]).attTables[tblIndex]).Rows[_lastSelRowIndex]).Values=fieldValues;
+				(_lastSelDataGrid.dataProvider as ArrayCollection).setItemAt(newValue, _lastSelRowIndex);
+			}
+			/**
+			 * 查询结果处理事件
+			 * @param e
+			 *
+			 */
+			private function selectCallback(e:Event):void
+			{
+				this.showResult(this.imsmap.activeLayerObj.onLayerSelectAndGetAtt(e));
+			}
+		]]>
+	</mx:Script>
+	<mx:TabNavigator id="tabContol"
+					 x="0"
+					 y="32"
+					 width="530"
+					 height="202">
+		<mx:Canvas label="无结果数据"
+				   width="98%"
+				   height="100%">
+
+
+		</mx:Canvas>
+	</mx:TabNavigator>
+	<mx:LinkButton x="19"
+				   y="3"
+				   label="首页"
+				   click="getResultByPage(1)"/>
+	<mx:LinkButton x="62"
+				   y="3"
+				   label="上一页"
+				   click="getResultByPage(parseFloat(this.pageNum.text)-1)"/>
+	<mx:LinkButton x="114"
+				   y="3"
+				   label="下一页"
+				   click="getResultByPage(parseFloat(this.pageNum.text)+1)"/>
+	<mx:LinkButton x="168"
+				   y="3"
+				   label="尾页"
+				   click="getResultByPage(this._lastPageCount)"/>
+	<mx:Label x="319"
+			  y="5"
+			  text="第"/>
+	<mx:TextInput id="pageNum"
+				  x="335"
+				  y="3"
+				  width="39"
+				  text="1"/>
+	<mx:Label x="376"
+			  y="5"
+			  text="页"/>
+	<mx:Button x="406"
+			   y="3"
+			   label="跳转"
+			   buttonMode="true"
+			   useHandCursor="true"
+			   click="getResultByPage(parseFloat(this.pageNum.text))"/>
+	<mx:Label id="totalPage"
+			  buttonMode="true"
+			  x="221"
+			  y="5"
+			  text="共0页"/>
+</IMSWindow>

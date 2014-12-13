@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 区的样式信息 -->
+<mx:Canvas implements="zdims.interfaces.control.IFeatureStyleEditor"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="211"
+		   height="216"
+		   fontSize="12"
+		   creationComplete="init()">
+	<mx:Label x="10"
+			  y="38"
+			  text="填充图案："/>
+	<mx:Label x="11"
+			  y="68"
+			  text="图案宽："/>
+	<mx:TextInput id="patternWidth"
+				  x="77"
+				  y="66"
+				  text="10"
+				  width="125"/>
+	<mx:Label x="10"
+			  y="98"
+			  text="图案高："/>
+	<mx:TextInput id="patternHeight"
+				  x="77"
+				  y="96"
+				  text="10"
+				  width="124"/>
+	<mx:Label x="11"
+			  y="158"
+			  text="图案颜色："/>
+	<mx:Label x="10"
+			  y="10"
+			  text="区要素参数设置:"
+			  width="102"
+			  color="#5164DD"/>
+	<mx:ComboBox id="patternColor"
+				 x="77"
+				 y="156"
+				 width="124"
+				 dataProvider="['1:黑色','175:红色','4:黄色','7:绿色','5:蓝色','3:紫色']"
+				 editable="true"
+				 change="setColor(this.patternColor)">
+	</mx:ComboBox>
+	<mx:ComboBox id="patternID"
+				 x="77"
+				 y="36"
+				 width="124"
+				 dataProvider="['1','2','3','4','5','6']"
+				 editable="true">
+	</mx:ComboBox>
+	<mx:Label x="10"
+			  y="128"
+			  text="图案笔宽："/>
+	<mx:TextInput id="patternPenWidth"
+				  x="77"
+				  y="126"
+				  text="10"
+				  width="124"/>
+	<mx:Label x="11"
+			  y="188"
+			  text="填充颜色："/>
+	<mx:ComboBox id="fillcolor"
+				 x="77"
+				 y="186"
+				 width="124"
+				 dataProvider="['1:黑色','175:红色','4:黄色','7:绿色','5:蓝色','3:紫色']"
+				 editable="true"
+				 change="setColor(this.fillcolor)">
+	</mx:ComboBox>
+	<mx:Script>
+		<![CDATA[
+			import Mapgis7.WebService.BasLib.WebGraphicsInfo;
+			import Mapgis7.WebService.BasLib.GInfoType;
+			private var gInfo:WebGraphicsInfo;
+			/**
+			 * 获取样式信息的类型：区样式信息
+			 */ 
+			public function getFeatureGinfoType():String
+			{
+				return GInfoType.RegInfo;
+			}
+			/**
+			 * 设置样式信息
+			 */ 
+			public function setGraphicStyle(style:WebGraphicsInfo):void
+			{
+				this.gInfo = style;
+			}
+			/**
+			 * 窗口初始化函数
+			 */ 
+			public function init():void
+			{
+				if (gInfo == null)
+					return;
+				this.fillcolor.text = gInfo.RegInfo.FillColor.toString();
+				this.patternHeight.text = gInfo.RegInfo.PatHeight.toString();
+				this.patternID.text = gInfo.RegInfo.PatID.toString();
+				this.patternWidth.text = gInfo.RegInfo.PatWidth.toString();
+				this.patternColor.text = gInfo.RegInfo.PatColor.toString();
+				this.patternPenWidth.text = gInfo.RegInfo.OutPenWidth.toString();
+			}
+			/**
+			 * 设置颜色
+			 */ 
+			public function setColor(list:ComboBox):void
+			{
+				list.text = list.text.split(":")[0];
+			}
+		]]>
+	</mx:Script>
+</mx:Canvas>
